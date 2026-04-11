@@ -1,8 +1,128 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { runQuery, QueryResult } from '../services/api';
 import { useConnections } from '../hooks/useConnections';
 import { ResultTable } from '../components/ResultTable';
 import { QueryHistory, HistoryEntry, loadHistory, appendHistory, clearHistory } from '../components/QueryHistory';
+
+type ExportFormat = 'csv' | 'json' | 'xml' | 'txt' | 'sql';
+
+function getCellString(value: unknown): string {
+  if (value === null || value === undefined) return 'NULL';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function escapeCsv(s: string): string {
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function escapeSqlString(s: string): string {
+  return s.replace(/'/g, "''");
+}
+
+function toCSV(result: QueryResult): string {
+  const header = result.columns.map(escapeCsv).join(',');
+  const rows = result.rows.map((row) =>
+    result.columns.map((col) => escapeCsv(getCellString(row[col]))).join(',')
+  );
+  return [header, ...rows].join('\r\n');
+}
+
+function toTSV(result: QueryResult): string {
+  const header = result.columns.join('\t');
+  const rows = result.rows.map((row) =>
+    result.columns.map((col) => getCellString(row[col]).replace(/\t/g, ' ')).join('\t')
+  );
+  return [header, ...rows].join('\r\n');
+}
+
+function toJSON(result: QueryResult): string {
+  return JSON.stringify(
+    result.rows.map((row) => {
+      const obj: Record<string, unknown> = {};
+      for (const col of result.columns) obj[col] = row[col] ?? null;
+      return obj;
+    }),
+    null,
+    2
+  );
+}
+
+function toXML(result: QueryResult): string {
+  const rows = result.rows
+    .map((row) => {
+      const fields = result.columns
+        .map((col) => `    <${col}>${escapeXml(getCellString(row[col]))}</${col}>`)
+        .join('\n');
+      return `  <row>\n${fields}\n  </row>`;
+    })
+    .join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<resultset>\n${rows}\n</resultset>`;
+}
+
+function toSQL(result: QueryResult): string {
+  if (result.rows.length === 0) return '-- No rows';
+  const cols = result.columns.map((c) => `\`${c}\``).join(', ');
+  return result.rows
+    .map((row) => {
+      const vals = result.columns
+        .map((col) => {
+          const v = row[col];
+          if (v === null || v === undefined) return 'NULL';
+          if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+          return `'${escapeSqlString(getCellString(v))}'`;
+        })
+        .join(', ');
+      return `INSERT INTO \`table\` (${cols}) VALUES (${vals});`;
+    })
+    .join('\n');
+}
+
+function convertResult(result: QueryResult, format: ExportFormat): string {
+  switch (format) {
+    case 'csv': return toCSV(result);
+    case 'txt': return toTSV(result);
+    case 'json': return toJSON(result);
+    case 'xml': return toXML(result);
+    case 'sql': return toSQL(result);
+  }
+}
+
+function getMimeType(format: ExportFormat): string {
+  switch (format) {
+    case 'csv': return 'text/csv';
+    case 'json': return 'application/json';
+    case 'xml': return 'application/xml';
+    case 'txt': return 'text/plain';
+    case 'sql': return 'text/plain';
+  }
+}
+
+function downloadFile(content: string, format: ExportFormat): void {
+  const blob = new Blob([content], { type: getMimeType(format) });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `query_result.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 export function SqlEditor(): React.ReactElement {
   const { connections } = useConnections();
@@ -13,6 +133,10 @@ export function SqlEditor(): React.ReactElement {
   const [isRunning, setIsRunning] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>(loadHistory);
   const [showHistory, setShowHistory] = useState(false);
+  const [copyFormat, setCopyFormat] = useState<ExportFormat>('csv');
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
+  const [copyLabel, setCopyLabel] = useState('Copy');
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!selectedConnId && connections.length > 0) {
@@ -88,6 +212,22 @@ export function SqlEditor(): React.ReactElement {
   function handleClearHistory(): void {
     clearHistory();
     setHistory([]);
+  }
+
+  function handleCopy(): void {
+    if (!result) return;
+    const text = convertResult(result, copyFormat);
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopyLabel('Copied!');
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => setCopyLabel('Copy'), 2000);
+    });
+  }
+
+  function handleExport(): void {
+    if (!result) return;
+    const content = convertResult(result, exportFormat);
+    downloadFile(content, exportFormat);
   }
 
   function dbTypeLabel(type: string): string {
@@ -192,7 +332,62 @@ export function SqlEditor(): React.ReactElement {
                   <span>
                     {result.rowCount} row{result.rowCount !== 1 ? 's' : ''} &nbsp;·&nbsp; {result.duration}ms
                   </span>
-                  <span>{result.columns.length} column{result.columns.length !== 1 ? 's' : ''}</span>
+                  <span style={{ marginRight: 'auto' }}>{result.columns.length} column{result.columns.length !== 1 ? 's' : ''}</span>
+
+                  {/* Copy controls */}
+                  <div className="result-action-group">
+                    <select
+                      className="result-format-select"
+                      value={copyFormat}
+                      onChange={(e) => setCopyFormat(e.target.value as ExportFormat)}
+                      title="Copy format"
+                    >
+                      <option value="csv">CSV</option>
+                      <option value="json">JSON</option>
+                      <option value="xml">XML</option>
+                      <option value="txt">TXT</option>
+                      <option value="sql">SQL</option>
+                    </select>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={handleCopy}
+                      title={`Copy as ${copyFormat.toUpperCase()}`}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                      {copyLabel}
+                    </button>
+                  </div>
+
+                  {/* Export controls */}
+                  <div className="result-action-group">
+                    <select
+                      className="result-format-select"
+                      value={exportFormat}
+                      onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                      title="Export format"
+                    >
+                      <option value="csv">CSV</option>
+                      <option value="json">JSON</option>
+                      <option value="xml">XML</option>
+                      <option value="txt">TXT</option>
+                      <option value="sql">SQL</option>
+                    </select>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={handleExport}
+                      title={`Export as ${exportFormat.toUpperCase()}`}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      Export
+                    </button>
+                  </div>
                 </div>
                 <ResultTable result={result} />
               </>
