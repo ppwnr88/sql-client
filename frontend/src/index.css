@@ -869,37 +869,87 @@ html, body, #root {
 }
 
 .result-action-group {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  margin-left: 8px;
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--main-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+
+.result-action-group:hover,
+.result-action-group:focus-within {
+  border-color: #b0b7be;
 }
 
 .result-format-select {
-  height: 26px;
-  padding: 0 4px;
-  font-size: 11px;
-  background: var(--main-bg);
-  color: var(--main-text);
-  border: 1px solid var(--main-border);
-  border-radius: 4px 0 0 4px;
-  border-right: none;
+  height: 30px;
+  padding: 0 6px 0 8px;
+  font-size: 11.5px;
+  font-family: var(--font);
+  background: var(--main-surface);
+  color: var(--main-muted);
+  border: none;
+  border-right: 1px solid var(--main-border);
   cursor: pointer;
   outline: none;
+  appearance: auto;
+  min-width: 54px;
+  transition: background var(--transition), color var(--transition);
 }
 
+.result-format-select:hover,
 .result-format-select:focus {
-  border-color: var(--accent);
+  background: var(--main-bg);
+  color: var(--main-text);
 }
 
-.result-action-group .btn-ghost {
-  height: 26px;
-  padding: 0 8px;
-  font-size: 11px;
-  border-radius: 0 4px 4px 0;
-  border: 1px solid var(--main-border);
-  gap: 4px;
+.result-action-group .result-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  font-family: var(--font);
+  font-weight: 500;
+  background: var(--main-surface);
+  color: var(--main-muted);
+  border: none;
+  cursor: pointer;
   white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
+}
+
+.result-action-group .result-action-btn:hover {
+  background: var(--main-bg);
+  color: var(--main-text);
+}
+
+.result-action-group .result-action-btn:active {
+  background: #e6eaf0;
+}
+
+.result-action-btn svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.result-action-btn:hover svg {
+  opacity: 1;
+}
+
+/* Copied! feedback state */
+.result-action-btn.copied {
+  color: #1a7f37;
+  background: #dafbe1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .result-action-btn.copied {
+    color: #3fb950;
+    background: #0f2d1a;
+  }
 }
 
 .result-empty {
