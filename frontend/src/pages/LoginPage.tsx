@@ -1,5 +1,4 @@
 import React, { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 interface LoginPageProps {
@@ -8,7 +7,6 @@ interface LoginPageProps {
 
 export function LoginPage({ onLoginSuccess }: LoginPageProps): React.ReactElement {
   const { login, isLoading } = useAuth();
-  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +18,6 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps): React.ReactElemen
     try {
       await login(username, password);
       onLoginSuccess();
-      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     }
