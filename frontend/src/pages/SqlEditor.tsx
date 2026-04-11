@@ -12,7 +12,7 @@ export function SqlEditor(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>(loadHistory);
-  const [showHistory, setShowHistory] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     if (!selectedConnId && connections.length > 0) {
@@ -82,6 +82,7 @@ export function SqlEditor(): React.ReactElement {
 
   function handleHistorySelect(historySql: string): void {
     setSql(historySql);
+    setShowHistory(false);
   }
 
   function handleClearHistory(): void {
@@ -99,51 +100,49 @@ export function SqlEditor(): React.ReactElement {
   }
 
   return (
-    <div className="editor-layout" style={{ height: '100vh', overflow: 'hidden' }}>
+    <div className="editor-layout">
+      {/* Toolbar */}
       <div className="editor-toolbar">
-        {connections.length === 0 ? (
-          <span style={{ fontSize: '13px', color: 'var(--main-muted)' }}>
-            No connections configured — add one in Connections
-          </span>
-        ) : (
-          <select
-            className="form-select"
-            value={selectedConnId}
-            onChange={(e) => setSelectedConnId(e.target.value)}
-            style={{ minWidth: '200px', width: 'auto' }}
-          >
-            <option value="">Select connection...</option>
-            {connections.map((conn) => (
-              <option key={conn.id} value={conn.id}>
-                {conn.name} ({dbTypeLabel(conn.type)})
-              </option>
-            ))}
-          </select>
-        )}
-
-        <button
-          className="btn btn-primary"
-          onClick={() => void handleRun()}
-          disabled={isRunning || !selectedConnId}
-          title="Run query (Ctrl+Enter)"
-        >
-          {isRunning ? (
-            <span className="spinner" />
+        <div className="editor-toolbar-row">
+          {connections.length === 0 ? (
+            <span className="editor-no-conn">
+              No connections configured — add one in Connections
+            </span>
           ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
+            <select
+              className="form-select editor-conn-select"
+              value={selectedConnId}
+              onChange={(e) => setSelectedConnId(e.target.value)}
+            >
+              <option value="">Select connection...</option>
+              {connections.map((conn) => (
+                <option key={conn.id} value={conn.id}>
+                  {conn.name} ({dbTypeLabel(conn.type)})
+                </option>
+              ))}
+            </select>
           )}
-          {isRunning ? 'Running...' : 'Run'}
-        </button>
 
-        <span style={{ fontSize: '12px', color: 'var(--main-muted)' }}>
-          Ctrl+Enter to run
-        </span>
-
-        <div style={{ marginLeft: 'auto' }}>
           <button
-            className="btn btn-ghost btn-sm"
+            className="btn btn-primary editor-run-btn"
+            onClick={() => void handleRun()}
+            disabled={isRunning || !selectedConnId}
+            title="Run query (Ctrl+Enter)"
+          >
+            {isRunning ? (
+              <span className="spinner" />
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+            )}
+            {isRunning ? 'Running...' : 'Run'}
+          </button>
+
+          <span className="editor-shortcut-hint">Ctrl+Enter</span>
+
+          <button
+            className="btn btn-ghost btn-sm editor-history-btn"
             onClick={() => setShowHistory((v) => !v)}
             title="Toggle history"
           >
@@ -156,6 +155,7 @@ export function SqlEditor(): React.ReactElement {
         </div>
       </div>
 
+      {/* Body: textarea + results + optional history panel */}
       <div className="editor-body">
         <div className="editor-main">
           <div className="editor-pane">
@@ -164,8 +164,8 @@ export function SqlEditor(): React.ReactElement {
               value={sql}
               onChange={(e) => setSql(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="-- Write your SQL query here&#10;-- Press Ctrl+Enter to run&#10;SELECT * FROM users LIMIT 10;"
-              rows={10}
+              placeholder={"-- Write your SQL query here\n-- Press Ctrl+Enter to run\nSELECT * FROM users LIMIT 10;"}
+              rows={6}
               spellCheck={false}
               autoCapitalize="off"
               autoCorrect="off"
@@ -174,7 +174,7 @@ export function SqlEditor(): React.ReactElement {
 
           <div className="result-pane">
             {error && (
-              <div style={{ padding: '12px 16px' }}>
+              <div className="result-error-wrap">
                 <div className="alert alert-error">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}>
                     <circle cx="12" cy="12" r="10" />
@@ -213,12 +213,21 @@ export function SqlEditor(): React.ReactElement {
           </div>
         </div>
 
+        {/* History: desktop inline panel, mobile overlay */}
         {showHistory && (
-          <QueryHistory
-            entries={history}
-            onSelect={handleHistorySelect}
-            onClear={handleClearHistory}
-          />
+          <>
+            <div
+              className="history-overlay-backdrop"
+              onClick={() => setShowHistory(false)}
+            />
+            <div className="history-sidebar">
+              <QueryHistory
+                entries={history}
+                onSelect={handleHistorySelect}
+                onClear={handleClearHistory}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>

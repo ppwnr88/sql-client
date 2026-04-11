@@ -24,6 +24,7 @@ export function ConnectionManager(): React.ReactElement {
   const [testStatus, setTestStatus] = useState<Record<string, { ok: boolean; msg: string }>>({});
   const [testingId, setTestingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showSecondaryActions, setShowSecondaryActions] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   const editingConn = connections.find((c) => c.id === editingId);
@@ -31,6 +32,7 @@ export function ConnectionManager(): React.ReactElement {
   function openAdd(): void {
     setEditingId(null);
     setModalMode('add');
+    setShowSecondaryActions(false);
   }
 
   function openEdit(id: string): void {
@@ -97,6 +99,7 @@ export function ConnectionManager(): React.ReactElement {
     };
     reader.readAsText(file);
     e.target.value = '';
+    setShowSecondaryActions(false);
   }
 
   function dbTypeLabel(type: string): string {
@@ -112,7 +115,9 @@ export function ConnectionManager(): React.ReactElement {
     <div className="main-content">
       <div className="page-header">
         <h1>Connections</h1>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+
+        {/* Desktop header actions */}
+        <div className="page-header-actions desktop-actions">
           <input
             ref={importRef}
             type="file"
@@ -146,7 +151,56 @@ export function ConnectionManager(): React.ReactElement {
             New Connection
           </button>
         </div>
+
+        {/* Mobile header actions */}
+        <div className="page-header-actions mobile-actions">
+          <input
+            ref={importRef}
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            onChange={handleImportFile}
+          />
+          <button className="btn btn-ghost btn-icon" onClick={() => setShowSecondaryActions((v) => !v)} title="More actions">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="5" r="1" fill="currentColor" />
+              <circle cx="12" cy="12" r="1" fill="currentColor" />
+              <circle cx="12" cy="19" r="1" fill="currentColor" />
+            </svg>
+          </button>
+          <button className="btn btn-primary" onClick={openAdd}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add
+          </button>
+        </div>
       </div>
+
+      {/* Mobile secondary actions row */}
+      {showSecondaryActions && (
+        <div className="mobile-secondary-actions">
+          <button className="btn btn-secondary btn-sm" onClick={() => importRef.current?.click()}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            Import JSON
+          </button>
+          {connections.length > 0 && (
+            <button className="btn btn-secondary btn-sm" onClick={() => { exportConnections(); setShowSecondaryActions(false); }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export JSON
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="page-body">
         {connections.length === 0 ? (
@@ -179,9 +233,7 @@ export function ConnectionManager(): React.ReactElement {
                     </span>
                     {testStatus[conn.id] && (
                       <div style={{ marginTop: '4px' }}>
-                        <span
-                          className={`badge ${testStatus[conn.id].ok ? 'badge-green' : 'badge-red'}`}
-                        >
+                        <span className={`badge ${testStatus[conn.id].ok ? 'badge-green' : 'badge-red'}`}>
                           {testStatus[conn.id].ok ? 'Connected' : testStatus[conn.id].msg}
                         </span>
                       </div>
@@ -192,9 +244,7 @@ export function ConnectionManager(): React.ReactElement {
                 <div className="connection-actions">
                   {deleteConfirmId === conn.id ? (
                     <>
-                      <span style={{ fontSize: '12px', color: 'var(--main-muted)', marginRight: '4px' }}>
-                        Delete?
-                      </span>
+                      <span className="delete-confirm-label">Delete?</span>
                       <button
                         className="btn btn-danger btn-sm"
                         onClick={() => {
