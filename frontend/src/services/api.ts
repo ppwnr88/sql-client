@@ -63,7 +63,7 @@ function extractErrorMessage(err: unknown): string {
 
 export async function login(username: string, password: string): Promise<LoginResponse> {
   try {
-    const { data } = await client.post<LoginResponse>('/api/auth', { username, password });
+    const { data } = await client.post<LoginResponse>('/api/auth/login', { username, password });
     return data;
   } catch (err) {
     throw new Error(extractErrorMessage(err));
