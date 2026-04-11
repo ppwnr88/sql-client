@@ -1,0 +1,80 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../Dockerfile
+    ports:
+      - '3001:3001'
+    environment:
+      PORT: 3001
+      AUTH_USERNAME: ${AUTH_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-admin123}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    networks:
+      - sql-client-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - '5173:5173'
+    environment:
+      VITE_API_URL: http://localhost:3001
+    command: sh -c "npm install && npm run dev -- --host"
+    networks:
+      - sql-client-net
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpassword
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sql-client-net
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB: testdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U testuser -d testdb']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sql-client-net
+
+volumes:
+  mysql_data:
+  postgres_data:
+
+networks:
+  sql-client-net:
+    driver: bridge

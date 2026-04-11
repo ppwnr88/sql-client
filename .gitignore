@@ -1,0 +1,30 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+
+# Backend build output
+backend/dist/
+
+# Frontend build output
+frontend/dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Vercel
+.vercel/
+
+# Claude
+.claude/
