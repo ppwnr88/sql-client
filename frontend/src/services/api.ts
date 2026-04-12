@@ -20,7 +20,7 @@ client.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('jwt_token');
-      window.location.href = '/login';
+      localStorage.removeItem('auth_username');
     }
     return Promise.reject(error);
   }

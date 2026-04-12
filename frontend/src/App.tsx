@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, Link } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { LoginPage } from './pages/LoginPage';
 import { ConnectionManager } from './pages/ConnectionManager';
@@ -34,13 +34,13 @@ function LogoutIcon(): React.ReactElement {
   );
 }
 
-interface ProtectedLayoutProps {
+interface AppLayoutProps {
+  isAuthenticated: boolean;
   onLogout: () => void;
   username: string | null;
 }
 
-function ProtectedLayout({ onLogout, username }: ProtectedLayoutProps): React.ReactElement {
-
+function AppLayout({ isAuthenticated, onLogout, username }: AppLayoutProps): React.ReactElement {
   return (
     <div className="app-layout">
       {/* Desktop sidebar */}
@@ -72,15 +72,28 @@ function ProtectedLayout({ onLogout, username }: ProtectedLayoutProps): React.Re
         </nav>
 
         <div className="sidebar-footer">
-          {username && (
-            <div className="sidebar-user">
-              Signed in as <strong>{username}</strong>
-            </div>
+          {isAuthenticated ? (
+            <>
+              {username && (
+                <div className="sidebar-user">
+                  Signed in as <strong>{username}</strong>
+                </div>
+              )}
+              <button onClick={onLogout} className="sidebar-logout-btn">
+                <LogoutIcon />
+                Sign out
+              </button>
+            </>
+          ) : (
+            <Link to="/login" className="sidebar-logout-btn sidebar-login-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              Login (Optional)
+            </Link>
           )}
-          <button onClick={onLogout} className="sidebar-logout-btn">
-            <LogoutIcon />
-            Sign out
-          </button>
         </div>
       </aside>
 
@@ -94,10 +107,22 @@ function ProtectedLayout({ onLogout, username }: ProtectedLayoutProps): React.Re
           </svg>
           SQL Client
         </div>
-        {username && <span className="mobile-header-user">{username}</span>}
-        <button className="mobile-logout-btn" onClick={onLogout} title="Sign out">
-          <LogoutIcon />
-        </button>
+        {isAuthenticated ? (
+          <>
+            {username && <span className="mobile-header-user">{username}</span>}
+            <button className="mobile-logout-btn" onClick={onLogout} title="Sign out">
+              <LogoutIcon />
+            </button>
+          </>
+        ) : (
+          <Link to="/login" className="mobile-logout-btn" title="Login">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+          </Link>
+        )}
       </header>
 
       {/* Page content */}
@@ -145,11 +170,12 @@ export default function App(): React.ReactElement {
   return (
     <BrowserRouter>
       <Routes>
+        {/* /login is always accessible; redirect to editor if already logged in */}
         <Route
           path="/login"
           element={
             auth.isAuthenticated ? (
-              <Navigate to="/" replace />
+              <Navigate to="/editor" replace />
             ) : (
               <LoginPage
                 onLoginSuccess={handleLoginSuccess}
@@ -159,14 +185,15 @@ export default function App(): React.ReactElement {
             )
           }
         />
+        {/* All other routes: accessible to everyone (guest + authenticated) */}
         <Route
           path="*"
           element={
-            auth.isAuthenticated ? (
-              <ProtectedLayout onLogout={handleLogout} username={auth.username} />
-            ) : (
-              <Navigate to="/login" replace />
-            )
+            <AppLayout
+              isAuthenticated={auth.isAuthenticated}
+              onLogout={handleLogout}
+              username={auth.username}
+            />
           }
         />
       </Routes>
