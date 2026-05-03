@@ -35,7 +35,7 @@ export function ResultTable({ result }: ResultTableProps): React.ReactElement {
       <table className="result-table">
         <thead>
           <tr>
-            <th style={{ color: '#8b949e', width: '40px', textAlign: 'right' }}>#</th>
+            <th style={{ color: 'var(--main-muted)', width: '40px', textAlign: 'right' }}>#</th>
             {result.columns.map((col) => (
               <th key={col}>{col}</th>
             ))}
@@ -46,7 +46,7 @@ export function ResultTable({ result }: ResultTableProps): React.ReactElement {
             <tr key={rowIdx}>
               <td
                 style={{
-                  color: '#8b949e',
+                  color: 'var(--main-muted)',
                   textAlign: 'right',
                   userSelect: 'none',
                   width: '40px',

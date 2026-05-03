@@ -78,7 +78,7 @@ export function QueryHistory({
               </div>
               {entry.duration !== undefined && (
                 <div className="history-item-meta" style={{ marginTop: '2px' }}>
-                  <span style={{ color: entry.error ? '#cf222e' : '#1a7f37' }}>
+                  <span style={{ color: entry.error ? 'var(--danger)' : 'var(--success)' }}>
                     {entry.error ? 'Error' : `${entry.rowCount ?? 0} rows`}
                   </span>
                   <span>{entry.duration}ms</span>
