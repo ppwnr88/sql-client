@@ -244,24 +244,33 @@ export function SqlEditor(): React.ReactElement {
       {/* Toolbar */}
       <div className="editor-toolbar">
         <div className="editor-toolbar-row">
-          {connections.length === 0 ? (
-            <span className="editor-no-conn">
-              No connections configured — add one in Connections
+          <div className="editor-toolbar-status" title="Database connection">
+            <span className="editor-toolbar-icon" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+                <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
+              </svg>
             </span>
-          ) : (
-            <select
-              className="form-select editor-conn-select"
-              value={selectedConnId}
-              onChange={(e) => setSelectedConnId(e.target.value)}
-            >
-              <option value="">Select connection...</option>
-              {connections.map((conn) => (
-                <option key={conn.id} value={conn.id}>
-                  {conn.name} ({dbTypeLabel(conn.type)})
-                </option>
-              ))}
-            </select>
-          )}
+            {connections.length === 0 ? (
+              <span className="editor-no-conn">
+                No connections configured — add one in Connections
+              </span>
+            ) : (
+              <select
+                className="form-select editor-conn-select"
+                value={selectedConnId}
+                onChange={(e) => setSelectedConnId(e.target.value)}
+              >
+                <option value="">Select connection...</option>
+                {connections.map((conn) => (
+                  <option key={conn.id} value={conn.id}>
+                    {conn.name} ({dbTypeLabel(conn.type)})
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
           <button
             className="btn btn-primary editor-run-btn"

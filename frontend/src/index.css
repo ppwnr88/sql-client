@@ -1244,6 +1244,30 @@ html, body, #root {
   flex-wrap: wrap;
 }
 
+.editor-toolbar-status {
+  min-width: 220px;
+  max-width: 380px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.editor-toolbar-icon {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--main-border);
+  border-radius: var(--radius);
+  background: var(--main-surface);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 16px rgba(53, 196, 106, 0.04);
+}
+
 .editor-conn-select {
   min-width: 180px;
   width: auto;
@@ -1269,6 +1293,9 @@ html, body, #root {
 .editor-no-conn {
   font-size: 13px;
   color: var(--main-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .editor-body {
@@ -1697,11 +1724,17 @@ html, body, #root {
     gap: 8px;
   }
 
-  .editor-conn-select {
+  .editor-toolbar-status {
     flex: 1 1 100%;
     max-width: 100%;
     min-width: 0;
     order: 1;
+  }
+
+  .editor-conn-select {
+    flex: 1;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .editor-run-btn {
