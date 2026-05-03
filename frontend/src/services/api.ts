@@ -39,7 +39,7 @@ export interface ConnectionConfig {
   port: number;
   user: string;
   password: string;
-  database: string;
+  database?: string;
 }
 
 export interface QueryResult {
@@ -91,6 +91,17 @@ export async function testConnection(
       connection
     );
     return data;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err));
+  }
+}
+
+export async function listDatabases(
+  connection: Omit<ConnectionConfig, 'id' | 'name'>
+): Promise<string[]> {
+  try {
+    const { data } = await client.post<{ databases: string[] }>('/api/databases', connection);
+    return data.databases;
   } catch (err) {
     throw new Error(extractErrorMessage(err));
   }

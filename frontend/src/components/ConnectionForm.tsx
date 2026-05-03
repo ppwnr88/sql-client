@@ -128,14 +128,13 @@ export function ConnectionForm({
       </div>
 
       <div className="form-group">
-        <label className="form-label">Database</label>
+        <label className="form-label">Default Database (Optional)</label>
         <input
           className="form-input"
           name="database"
           value={form.database}
           onChange={handleChange}
-          placeholder="my_database"
-          required
+          placeholder="Select later in SQL Editor"
         />
       </div>
 

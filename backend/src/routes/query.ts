@@ -40,7 +40,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
   }
 
   if (!host || !user || !database) {
-    res.status(400).json({ error: 'Connection must include host, user, and database' });
+    res.status(400).json({ error: 'Connection must include host, user, and selected database' });
     return;
   }
 

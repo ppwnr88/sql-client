@@ -1,12 +1,12 @@
 import { Router, Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { testConnection, DatabaseConfig, DatabaseType } from '../services/database';
+import { listDatabases, DatabaseConfig, DatabaseType } from '../services/database';
 
 const router = Router();
 
 const VALID_DB_TYPES: DatabaseType[] = ['mysql', 'postgresql', 'mssql'];
 
-interface TestConnectionBody {
+interface DatabasesBody {
   type?: string;
   host?: string;
   port?: number;
@@ -16,7 +16,7 @@ interface TestConnectionBody {
 }
 
 router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const body = req.body as TestConnectionBody;
+  const body = req.body as DatabasesBody;
   const { type, host, port, user, password, database } = body;
 
   if (!type || !VALID_DB_TYPES.includes(type as DatabaseType)) {
@@ -38,12 +38,12 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
     database: database || undefined,
   };
 
-  const result = await testConnection(dbConfig);
-
-  if (result.success) {
-    res.json({ success: true, message: result.message });
-  } else {
-    res.status(400).json({ success: false, error: result.message });
+  try {
+    const databases = await listDatabases(dbConfig);
+    res.json({ databases });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to list databases';
+    res.status(500).json({ error: message });
   }
 });
 

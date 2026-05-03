@@ -78,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   if (!host || !user || !database) {
-    res.status(400).json({ error: 'Connection must include host, user, and database' });
+    res.status(400).json({ error: 'Connection must include host, user, and selected database' });
     return;
   }
 

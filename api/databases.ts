@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
-import { testConnection, DatabaseConfig, DatabaseType } from './_lib/database';
+import { listDatabases, DatabaseConfig, DatabaseType } from './_lib/database';
 
 const VALID_DB_TYPES: DatabaseType[] = ['mysql', 'postgresql', 'mssql'];
 
@@ -76,11 +76,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     database: database || undefined,
   };
 
-  const result = await testConnection(dbConfig);
-
-  if (result.success) {
-    res.json({ success: true, message: result.message });
-  } else {
-    res.status(400).json({ success: false, error: result.message });
+  try {
+    const databases = await listDatabases(dbConfig);
+    res.json({ databases });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to list databases';
+    res.status(500).json({ error: message });
   }
 }

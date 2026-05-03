@@ -34,6 +34,7 @@ const validBody = {
 describe('POST /api/test-connection', () => {
   beforeEach(() => {
     process.env.JWT_SECRET = SECRET;
+    mockTestConnection.mockReset();
   });
 
   afterEach(() => {
@@ -74,14 +75,17 @@ describe('POST /api/test-connection', () => {
     expect(res.body.error).toMatch(/user/i);
   });
 
-  it('returns 400 when database is missing', async () => {
+  it('allows database to be omitted for server-level connection checks', async () => {
+    mockTestConnection.mockResolvedValueOnce({ success: true, message: 'Connection successful' });
     const { database: _d, ...body } = validBody;
     const res = await request(app)
       .post('/api/test-connection')
       .set('Authorization', authHeader())
       .send(body);
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/database/i);
+    expect(res.status).toBe(200);
+    expect(mockTestConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ database: undefined })
+    );
   });
 
   it('returns 200 with success=true when connection succeeds', async () => {

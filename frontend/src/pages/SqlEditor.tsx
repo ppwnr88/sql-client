@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { runQuery, QueryResult } from '../services/api';
+import { listDatabases, runQuery, QueryResult } from '../services/api';
 import { useConnections } from '../hooks/useConnections';
 import { ResultTable } from '../components/ResultTable';
 import { QueryHistory, HistoryEntry, loadHistory, appendHistory, clearHistory } from '../components/QueryHistory';
@@ -127,6 +127,10 @@ function downloadFile(content: string, format: ExportFormat): void {
 export function SqlEditor(): React.ReactElement {
   const { connections } = useConnections();
   const [selectedConnId, setSelectedConnId] = useState<string>('');
+  const [selectedDatabase, setSelectedDatabase] = useState<string>('');
+  const [databases, setDatabases] = useState<string[]>([]);
+  const [isLoadingDatabases, setIsLoadingDatabases] = useState(false);
+  const [databaseError, setDatabaseError] = useState<string | null>(null);
   const [sql, setSql] = useState('');
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -146,9 +150,56 @@ export function SqlEditor(): React.ReactElement {
 
   const selectedConn = connections.find((c) => c.id === selectedConnId);
 
+  useEffect(() => {
+    if (!selectedConn) {
+      setSelectedDatabase('');
+      setDatabases([]);
+      setDatabaseError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingDatabases(true);
+    setDatabaseError(null);
+    setDatabases([]);
+    setSelectedDatabase(selectedConn.database ?? '');
+
+    void listDatabases({
+      type: selectedConn.type,
+      host: selectedConn.host,
+      port: selectedConn.port,
+      user: selectedConn.user,
+      password: selectedConn.password,
+      database: selectedConn.database,
+    })
+      .then((databaseNames) => {
+        if (cancelled) return;
+        setDatabases(databaseNames);
+        setSelectedDatabase((current) => {
+          if (current && databaseNames.includes(current)) return current;
+          return databaseNames[0] ?? '';
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setDatabaseError(err instanceof Error ? err.message : 'Failed to load databases');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingDatabases(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedConn]);
+
   const handleRun = useCallback(async (): Promise<void> => {
     if (!selectedConn) {
       setError('Please select a connection first');
+      return;
+    }
+    if (!selectedDatabase) {
+      setError('Please select a database first');
       return;
     }
     if (!sql.trim()) {
@@ -168,7 +219,7 @@ export function SqlEditor(): React.ReactElement {
           port: selectedConn.port,
           user: selectedConn.user,
           password: selectedConn.password,
-          database: selectedConn.database,
+          database: selectedDatabase,
         },
         sql
       );
@@ -195,7 +246,7 @@ export function SqlEditor(): React.ReactElement {
     } finally {
       setIsRunning(false);
     }
-  }, [selectedConn, sql]);
+  }, [selectedConn, selectedDatabase, sql]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>): void {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -272,10 +323,40 @@ export function SqlEditor(): React.ReactElement {
             )}
           </div>
 
+          <div className="editor-toolbar-status editor-database-status" title="Database">
+            <span className="editor-toolbar-icon" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 7h16" />
+                <path d="M4 12h16" />
+                <path d="M4 17h16" />
+                <path d="M7 4v16" />
+              </svg>
+            </span>
+            <select
+              className="form-select editor-db-select"
+              value={selectedDatabase}
+              onChange={(e) => setSelectedDatabase(e.target.value)}
+              disabled={!selectedConn || isLoadingDatabases || databases.length === 0}
+            >
+              <option value="">
+                {isLoadingDatabases
+                  ? 'Loading databases...'
+                  : databaseError
+                    ? 'Could not load databases'
+                    : 'Select database...'}
+              </option>
+              {databases.map((databaseName) => (
+                <option key={databaseName} value={databaseName}>
+                  {databaseName}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
             className="btn btn-primary editor-run-btn"
             onClick={() => void handleRun()}
-            disabled={isRunning || !selectedConnId}
+            disabled={isRunning || !selectedConnId || !selectedDatabase}
             title="Run query (Ctrl+Enter)"
           >
             {isRunning ? (

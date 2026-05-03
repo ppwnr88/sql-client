@@ -229,7 +229,8 @@ export function ConnectionManager(): React.ReactElement {
                   <div className="connection-details">
                     <h3>{conn.name}</h3>
                     <span>
-                      {dbTypeLabel(conn.type)} · {conn.user}@{conn.host}:{conn.port}/{conn.database}
+                      {dbTypeLabel(conn.type)} · {conn.user}@{conn.host}:{conn.port}
+                      {conn.database ? `/${conn.database}` : ''}
                     </span>
                     {testStatus[conn.id] && (
                       <div style={{ marginTop: '4px' }}>

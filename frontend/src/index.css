@@ -1275,6 +1275,17 @@ html, body, #root {
   max-width: 320px;
 }
 
+.editor-database-status {
+  max-width: 300px;
+}
+
+.editor-db-select {
+  min-width: 160px;
+  width: auto;
+  flex: 1;
+  max-width: 240px;
+}
+
 .editor-run-btn {
   flex-shrink: 0;
 }
@@ -1732,6 +1743,12 @@ html, body, #root {
   }
 
   .editor-conn-select {
+    flex: 1;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .editor-db-select {
     flex: 1;
     max-width: 100%;
     min-width: 0;

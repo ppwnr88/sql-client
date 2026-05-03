@@ -10,7 +10,7 @@ export interface DatabaseConfig {
   port: number;
   user: string;
   password: string;
-  database: string;
+  database?: string;
 }
 
 export interface QueryResult {
@@ -124,7 +124,7 @@ async function runMssqlQuery(
   sqlQuery: string,
   start: number
 ): Promise<QueryResult> {
-  const pool = await sql.connect({
+  const pool = new sql.ConnectionPool({
     server: config.host,
     port: config.port,
     user: config.user,
@@ -138,6 +138,7 @@ async function runMssqlQuery(
   });
 
   try {
+    await pool.connect();
     const result = await pool.request().query(sqlQuery);
     const duration = Date.now() - start;
 
@@ -184,7 +185,7 @@ export async function testConnection(config: DatabaseConfig): Promise<{ success:
           port: config.port,
           user: config.user,
           password: config.password,
-          database: config.database,
+          database: config.database || 'postgres',
           connectionTimeoutMillis: 10000,
         });
         await client.connect();
@@ -193,7 +194,7 @@ export async function testConnection(config: DatabaseConfig): Promise<{ success:
         break;
       }
       case 'mssql': {
-        const pool = await sql.connect({
+        const pool = new sql.ConnectionPool({
           server: config.host,
           port: config.port,
           user: config.user,
@@ -205,8 +206,12 @@ export async function testConnection(config: DatabaseConfig): Promise<{ success:
           },
           connectionTimeout: 10000,
         });
-        await pool.request().query('SELECT 1');
-        await pool.close();
+        try {
+          await pool.connect();
+          await pool.request().query('SELECT 1');
+        } finally {
+          await pool.close();
+        }
         break;
       }
       default:
@@ -216,5 +221,84 @@ export async function testConnection(config: DatabaseConfig): Promise<{ success:
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown connection error';
     return { success: false, message };
+  }
+}
+
+export async function listDatabases(config: DatabaseConfig): Promise<string[]> {
+  switch (config.type) {
+    case 'mysql':
+      return listMysqlDatabases(config);
+    case 'postgresql':
+      return listPostgresDatabases(config);
+    case 'mssql':
+      return listMssqlDatabases(config);
+    default:
+      throw new Error(`Unsupported database type: ${config.type}`);
+  }
+}
+
+async function listMysqlDatabases(config: DatabaseConfig): Promise<string[]> {
+  const connection = await mysql.createConnection({
+    host: config.host,
+    port: config.port,
+    user: config.user,
+    password: config.password,
+    connectTimeout: 10000,
+  });
+
+  try {
+    const [rows] = await connection.query('SHOW DATABASES');
+    return (rows as Array<Record<string, unknown>>)
+      .map((row) => String(row.Database ?? row.database ?? Object.values(row)[0] ?? ''))
+      .filter(Boolean);
+  } finally {
+    await connection.end();
+  }
+}
+
+async function listPostgresDatabases(config: DatabaseConfig): Promise<string[]> {
+  const client = new PgClient({
+    host: config.host,
+    port: config.port,
+    user: config.user,
+    password: config.password,
+    database: config.database || 'postgres',
+    connectionTimeoutMillis: 10000,
+  });
+
+  await client.connect();
+
+  try {
+    const result = await client.query<{ datname: string }>(
+      "SELECT datname FROM pg_database WHERE datallowconn = true AND datistemplate = false ORDER BY datname"
+    );
+    return result.rows.map((row) => row.datname);
+  } finally {
+    await client.end();
+  }
+}
+
+async function listMssqlDatabases(config: DatabaseConfig): Promise<string[]> {
+  const pool = new sql.ConnectionPool({
+    server: config.host,
+    port: config.port,
+    user: config.user,
+    password: config.password,
+    database: config.database,
+    options: {
+      encrypt: false,
+      trustServerCertificate: true,
+    },
+    connectionTimeout: 10000,
+  });
+
+  try {
+    await pool.connect();
+    const result = await pool.request().query<{ name: string }>(
+      'SELECT name FROM sys.databases WHERE state = 0 ORDER BY name'
+    );
+    return result.recordset.map((row) => row.name);
+  } finally {
+    await pool.close();
   }
 }

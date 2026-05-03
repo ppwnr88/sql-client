@@ -41,15 +41,25 @@ jest.mock('pg', () => {
 
 // ─── mssql mock ───────────────────────────────────────────────────────────────
 jest.mock('mssql', () => {
+  const mockConnect = jest.fn().mockResolvedValue(undefined);
   const mockQuery = jest.fn();
   const mockClose = jest.fn().mockResolvedValue(undefined);
+  const mockRequest = jest.fn().mockReturnValue({ query: mockQuery });
+  const MockConnectionPool = jest.fn().mockImplementation(() => ({
+    connect: mockConnect,
+    request: mockRequest,
+    close: mockClose,
+  }));
   return {
+    ConnectionPool: MockConnectionPool,
     connect: jest.fn().mockResolvedValue({
-      request: jest.fn().mockReturnValue({ query: mockQuery }),
+      request: mockRequest,
       close: mockClose,
     }),
+    __mockConnect: mockConnect,
     __mockQuery: mockQuery,
     __mockClose: mockClose,
+    __mockRequest: mockRequest,
   };
 });
 
@@ -218,7 +228,7 @@ describe('testConnection', () => {
     });
 
     it('returns success=false when connect throws', async () => {
-      (mssql.connect as jest.Mock).mockRejectedValueOnce(new Error('Login failed'));
+      mssql.__mockConnect.mockRejectedValueOnce(new Error('Login failed'));
       const result = await testConnection(cfg('mssql'));
       expect(result.success).toBe(false);
       expect(result.message).toBe('Login failed');
