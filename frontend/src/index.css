@@ -1134,14 +1134,23 @@ html, body, #root {
   min-width: 0;
 }
 
+.connection-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 2px;
+}
+
 .connection-details h3 {
   font-size: 14px;
   font-weight: 600;
   color: var(--main-text);
-  margin-bottom: 2px;
+  margin-bottom: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 1;
 }
 
 .connection-details > span {
@@ -1154,25 +1163,22 @@ html, body, #root {
   display: block;
 }
 
-.connection-status-row {
-  display: flex;
-  align-items: center;
-  margin-top: 8px;
-}
-
 .connection-status {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  max-width: 100%;
-  min-height: 28px;
-  padding: 4px 11px 4px 5px;
+  gap: 6px;
+  max-width: 280px;
+  min-height: 22px;
+  padding: 3px 9px 3px 4px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   font-family: var(--font-mono);
   line-height: 1.2;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
 .connection-status.connected {
@@ -1189,8 +1195,8 @@ html, body, #root {
 }
 
 .connection-status-icon {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;

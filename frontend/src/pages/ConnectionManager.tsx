@@ -227,21 +227,20 @@ export function ConnectionManager(): React.ReactElement {
                     {conn.type === 'mssql' && 'MS'}
                   </div>
                   <div className="connection-details">
-                    <h3>{conn.name}</h3>
-                    <span>
-                      {dbTypeLabel(conn.type)} · {conn.user}@{conn.host}:{conn.port}
-                      {conn.database ? `/${conn.database}` : ''}
-                    </span>
-                    {testStatus[conn.id] && (
-                      <div className="connection-status-row">
-                        <span className={`connection-status ${testStatus[conn.id].ok ? 'connected' : 'failed'}`}>
+                    <div className="connection-title-row">
+                      <h3>{conn.name}</h3>
+                      {testStatus[conn.id] && (
+                        <span
+                          className={`connection-status ${testStatus[conn.id].ok ? 'connected' : 'failed'}`}
+                          title={testStatus[conn.id].ok ? 'Connected' : testStatus[conn.id].msg}
+                        >
                           <span className="connection-status-icon" aria-hidden="true">
                             {testStatus[conn.id].ok ? (
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="20 6 9 17 4 12" />
                               </svg>
                             ) : (
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="18" y1="6" x2="6" y2="18" />
                                 <line x1="6" y1="6" x2="18" y2="18" />
                               </svg>
@@ -249,8 +248,12 @@ export function ConnectionManager(): React.ReactElement {
                           </span>
                           {testStatus[conn.id].ok ? 'Connected' : testStatus[conn.id].msg}
                         </span>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    <span>
+                      {dbTypeLabel(conn.type)} · {conn.user}@{conn.host}:{conn.port}
+                      {conn.database ? `/${conn.database}` : ''}
+                    </span>
                   </div>
                 </div>
 
