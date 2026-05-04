@@ -1154,6 +1154,60 @@ html, body, #root {
   display: block;
 }
 
+.connection-status-row {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 3px 10px 3px 4px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.connection-status.connected {
+  color: var(--success);
+  background: rgba(53, 196, 106, 0.11);
+  border: 1px solid rgba(53, 196, 106, 0.24);
+  box-shadow: 0 0 18px rgba(53, 196, 106, 0.08);
+}
+
+.connection-status.failed {
+  color: var(--danger);
+  background: rgba(255, 95, 87, 0.11);
+  border: 1px solid rgba(255, 95, 87, 0.24);
+}
+
+.connection-status-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.connection-status.connected .connection-status-icon {
+  color: var(--accent-contrast);
+  background: var(--success);
+}
+
+.connection-status.failed .connection-status-icon {
+  color: var(--accent-contrast);
+  background: var(--danger);
+}
+
 .connection-actions {
   display: flex;
   gap: 6px;
