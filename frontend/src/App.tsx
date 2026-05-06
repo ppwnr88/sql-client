@@ -73,8 +73,6 @@ function AppLayout(): React.ReactElement {
         <Routes>
           <Route path="/editor" element={<SqlEditor />} />
           <Route path="/connections" element={<ConnectionManager />} />
-          <Route path="/" element={<Navigate to="/editor" replace />} />
-          <Route path="*" element={<Navigate to="/editor" replace />} />
         </Routes>
       </div>
 
@@ -103,8 +101,10 @@ export default function App(): React.ReactElement {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LandingPage />} />
-        <Route path="*" element={<AppLayout />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/editor/*" element={<AppLayout />} />
+        <Route path="/connections/*" element={<AppLayout />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
