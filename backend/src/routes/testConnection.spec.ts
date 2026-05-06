@@ -1,7 +1,5 @@
 import request from 'supertest';
 import express from 'express';
-import jwt from 'jsonwebtoken';
-import { authMiddleware } from '../middleware/auth';
 import testConnectionRouter from './testConnection';
 
 jest.mock('../services/database', () => ({
@@ -11,16 +9,9 @@ jest.mock('../services/database', () => ({
 import { testConnection } from '../services/database';
 const mockTestConnection = testConnection as jest.Mock;
 
-const SECRET = 'test-secret';
-
 const app = express();
 app.use(express.json());
-app.use('/api/test-connection', authMiddleware, testConnectionRouter);
-
-function authHeader(): string {
-  const token = jwt.sign({ userId: 'admin' }, SECRET);
-  return `Bearer ${token}`;
-}
+app.use('/api/test-connection', testConnectionRouter);
 
 const validBody = {
   type: 'mysql',
@@ -33,23 +24,12 @@ const validBody = {
 
 describe('POST /api/test-connection', () => {
   beforeEach(() => {
-    process.env.JWT_SECRET = SECRET;
     mockTestConnection.mockReset();
-  });
-
-  afterEach(() => {
-    delete process.env.JWT_SECRET;
-  });
-
-  it('returns 401 without auth token', async () => {
-    const res = await request(app).post('/api/test-connection').send(validBody);
-    expect(res.status).toBe(401);
   });
 
   it('returns 400 for an invalid database type', async () => {
     const res = await request(app)
       .post('/api/test-connection')
-      .set('Authorization', authHeader())
       .send({ ...validBody, type: 'sqlite' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/mysql|postgresql|mssql/);
@@ -59,7 +39,6 @@ describe('POST /api/test-connection', () => {
     const { host: _h, ...body } = validBody;
     const res = await request(app)
       .post('/api/test-connection')
-      .set('Authorization', authHeader())
       .send(body);
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/host/i);
@@ -69,7 +48,6 @@ describe('POST /api/test-connection', () => {
     const { user: _u, ...body } = validBody;
     const res = await request(app)
       .post('/api/test-connection')
-      .set('Authorization', authHeader())
       .send(body);
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/user/i);
@@ -80,7 +58,6 @@ describe('POST /api/test-connection', () => {
     const { database: _d, ...body } = validBody;
     const res = await request(app)
       .post('/api/test-connection')
-      .set('Authorization', authHeader())
       .send(body);
     expect(res.status).toBe(200);
     expect(mockTestConnection).toHaveBeenCalledWith(
@@ -93,7 +70,6 @@ describe('POST /api/test-connection', () => {
 
     const res = await request(app)
       .post('/api/test-connection')
-      .set('Authorization', authHeader())
       .send(validBody);
 
     expect(res.status).toBe(200);
@@ -106,7 +82,6 @@ describe('POST /api/test-connection', () => {
 
     const res = await request(app)
       .post('/api/test-connection')
-      .set('Authorization', authHeader())
       .send(validBody);
 
     expect(res.status).toBe(400);
@@ -119,7 +94,6 @@ describe('POST /api/test-connection', () => {
 
     await request(app)
       .post('/api/test-connection')
-      .set('Authorization', authHeader())
       .send({ type: 'postgresql', host: 'localhost', user: 'postgres', database: 'mydb' });
 
     expect(mockTestConnection).toHaveBeenCalledWith(

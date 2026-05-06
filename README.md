@@ -11,8 +11,7 @@ A production-ready web-based SQL client supporting MySQL, PostgreSQL, and Micros
 - Save and manage multiple named connections (stored in browser)
 - Import/export connections as JSON
 - Test connection before saving
-- JWT-based single-user authentication
-- Dark sidebar + light editor layout
+- Dark terminal-style editor layout
 
 ## Architecture
 
@@ -21,8 +20,8 @@ sql-client/
 ├── backend/          Express + TypeScript API server (port 3001)
 ├── frontend/         React + Vite SPA (port 5173)
 ├── api/              Vercel serverless functions
-│   ├── auth.ts
 │   ├── query.ts
+│   ├── databases.ts
 │   ├── test-connection.ts
 │   └── _lib/database.ts
 ├── docker-compose.yml
@@ -45,7 +44,6 @@ npm run install:all
 
 # Copy and configure backend env
 cp backend/.env.example backend/.env
-# Edit backend/.env with your JWT_SECRET
 
 # Run both servers concurrently
 npm run dev
@@ -56,15 +54,6 @@ npm run dev
 
 The Vite dev server proxies all `/api/*` requests to `localhost:3001`.
 
-### Default credentials
-
-```
-Username: admin
-Password: admin123
-```
-
-Change these via environment variables (see below).
-
 ## Environment Variables
 
 ### Backend (`backend/.env`)
@@ -72,9 +61,6 @@ Change these via environment variables (see below).
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3001` | Express server port |
-| `AUTH_USERNAME` | `admin` | Login username |
-| `AUTH_PASSWORD` | `admin123` | Login password (plain text or bcrypt hash) |
-| `JWT_SECRET` | — | **Required.** Secret for signing JWTs |
 
 ### Frontend
 
@@ -90,11 +76,7 @@ docker-compose up
 
 # Backend only
 docker build -t sql-client-backend .
-docker run -p 3001:3001 \
-  -e JWT_SECRET=your-secret \
-  -e AUTH_USERNAME=admin \
-  -e AUTH_PASSWORD=admin123 \
-  sql-client-backend
+docker run -p 3001:3001 sql-client-backend
 ```
 
 Docker Compose includes:
@@ -109,26 +91,12 @@ Docker Compose includes:
 
 1. Push this repo to GitHub
 2. Import the project at https://vercel.com/new
-3. Set these environment variables in the Vercel dashboard:
-   - `AUTH_USERNAME`
-   - `AUTH_PASSWORD`
-   - `JWT_SECRET` (use a strong random string)
-4. Deploy
+3. Deploy
 
 The `vercel.json` configuration:
 - Builds the frontend (`cd frontend && npm install && npm run build`)
 - Serves the SPA from `frontend/dist`
 - Routes all `/api/*` requests to the serverless functions in `/api/`
-
-### Vercel environment variables
-
-Set in Project Settings → Environment Variables:
-
-```
-AUTH_USERNAME=admin
-AUTH_PASSWORD=your-secure-password
-JWT_SECRET=your-random-32-char-secret
-```
 
 ## Connection JSON format
 
@@ -164,7 +132,4 @@ Supported `type` values: `mysql`, `postgresql`, `mssql`
 ## Security notes
 
 - Database credentials are sent from the browser on each request and never stored server-side
-- JWTs expire after 8 hours
-- All `/api/query` and `/api/test-connection` endpoints require a valid Bearer token
 - Use HTTPS in production (Vercel provides this automatically)
-- Set a strong `JWT_SECRET` — at least 32 random characters

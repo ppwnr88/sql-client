@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import authRouter from './routes/auth';
 import queryRouter from './routes/query';
 import testConnectionRouter from './routes/testConnection';
 import databasesRouter from './routes/databases';
@@ -12,7 +11,7 @@ const PORT = parseInt(process.env.PORT ?? '3001', 10);
 app.use(cors({
   origin: process.env.CORS_ORIGIN ?? '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type'],
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -21,7 +20,6 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/auth', authRouter);
 app.use('/api/query', queryRouter);
 app.use('/api/test-connection', testConnectionRouter);
 app.use('/api/databases', databasesRouter);

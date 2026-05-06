@@ -1,7 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate, Link } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth';
-import { LoginPage } from './pages/LoginPage';
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { ConnectionManager } from './pages/ConnectionManager';
 import { SqlEditor } from './pages/SqlEditor';
 
@@ -24,23 +22,7 @@ function EditorIcon(): React.ReactElement {
   );
 }
 
-function LogoutIcon(): React.ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <polyline points="16 17 21 12 16 7" />
-      <line x1="21" y1="12" x2="9" y2="12" />
-    </svg>
-  );
-}
-
-interface AppLayoutProps {
-  isAuthenticated: boolean;
-  onLogout: () => void;
-  username: string | null;
-}
-
-function AppLayout({ isAuthenticated, onLogout, username }: AppLayoutProps): React.ReactElement {
+function AppLayout(): React.ReactElement {
   return (
     <div className="app-layout">
       {/* Desktop sidebar */}
@@ -71,30 +53,6 @@ function AppLayout({ isAuthenticated, onLogout, username }: AppLayoutProps): Rea
           </NavLink>
         </nav>
 
-        <div className="sidebar-footer">
-          {isAuthenticated ? (
-            <>
-              {username && (
-                <div className="sidebar-user">
-                  Signed in as <strong>{username}</strong>
-                </div>
-              )}
-              <button onClick={onLogout} className="sidebar-logout-btn">
-                <LogoutIcon />
-                Sign out
-              </button>
-            </>
-          ) : (
-            <Link to="/login" className="sidebar-logout-btn sidebar-login-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                <polyline points="10 17 15 12 10 7" />
-                <line x1="15" y1="12" x2="3" y2="12" />
-              </svg>
-              Login (Optional)
-            </Link>
-          )}
-        </div>
       </aside>
 
       {/* Mobile top header */}
@@ -107,22 +65,6 @@ function AppLayout({ isAuthenticated, onLogout, username }: AppLayoutProps): Rea
           </svg>
           SQL Client
         </div>
-        {isAuthenticated ? (
-          <>
-            {username && <span className="mobile-header-user">{username}</span>}
-            <button className="mobile-logout-btn" onClick={onLogout} title="Sign out">
-              <LogoutIcon />
-            </button>
-          </>
-        ) : (
-          <Link to="/login" className="mobile-logout-btn" title="Login">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <polyline points="10 17 15 12 10 7" />
-              <line x1="15" y1="12" x2="3" y2="12" />
-            </svg>
-          </Link>
-        )}
       </header>
 
       {/* Page content */}
@@ -157,45 +99,10 @@ function AppLayout({ isAuthenticated, onLogout, username }: AppLayoutProps): Rea
 }
 
 export default function App(): React.ReactElement {
-  const auth = useAuth();
-
-  function handleLoginSuccess(): void {
-    // auth state updates via useAuth hook after localStorage write
-  }
-
-  function handleLogout(): void {
-    auth.logout();
-  }
-
   return (
     <BrowserRouter>
       <Routes>
-        {/* /login is always accessible; redirect to editor if already logged in */}
-        <Route
-          path="/login"
-          element={
-            auth.isAuthenticated ? (
-              <Navigate to="/editor" replace />
-            ) : (
-              <LoginPage
-                onLoginSuccess={handleLoginSuccess}
-                login={auth.login}
-                isLoading={auth.isLoading}
-              />
-            )
-          }
-        />
-        {/* All other routes: accessible to everyone (guest + authenticated) */}
-        <Route
-          path="*"
-          element={
-            <AppLayout
-              isAuthenticated={auth.isAuthenticated}
-              onLogout={handleLogout}
-              username={auth.username}
-            />
-          }
-        />
+        <Route path="*" element={<AppLayout />} />
       </Routes>
     </BrowserRouter>
   );

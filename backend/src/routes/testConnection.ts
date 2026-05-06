@@ -1,5 +1,4 @@
-import { Router, Response } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth';
+import { Router, Request, Response } from 'express';
 import { testConnection, DatabaseConfig, DatabaseType } from '../services/database';
 
 const router = Router();
@@ -15,7 +14,7 @@ interface TestConnectionBody {
   database?: string;
 }
 
-router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/', async (req: Request, res: Response): Promise<void> => {
   const body = req.body as TestConnectionBody;
   const { type, host, port, user, password, database } = body;
 

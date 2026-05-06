@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import jwt from 'jsonwebtoken';
 import { runQuery, DatabaseConfig, DatabaseType } from './_lib/database';
 
 const VALID_DB_TYPES: DatabaseType[] = ['mysql', 'postgresql', 'mssql'];
@@ -12,20 +11,10 @@ function getDefaultPort(type: DatabaseType): number {
   }
 }
 
-function verifyToken(authHeader: string | undefined, secret: string): boolean {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
-  try {
-    jwt.verify(authHeader.slice(7), secret);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     res.status(204).end();
@@ -34,17 +23,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) {
-    res.status(500).json({ error: 'JWT_SECRET not configured' });
-    return;
-  }
-
-  if (!verifyToken(req.headers.authorization, jwtSecret)) {
-    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 

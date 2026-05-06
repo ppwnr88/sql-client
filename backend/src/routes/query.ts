@@ -1,5 +1,4 @@
-import { Router, Response } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth';
+import { Router, Request, Response } from 'express';
 import { runQuery, DatabaseConfig, DatabaseType } from '../services/database';
 
 const router = Router();
@@ -18,7 +17,7 @@ interface QueryRequestBody {
 
 const VALID_DB_TYPES: DatabaseType[] = ['mysql', 'postgresql', 'mssql'];
 
-router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/', async (req: Request, res: Response): Promise<void> => {
   const body = req.body as QueryRequestBody;
   const { connection, sql } = body;
 

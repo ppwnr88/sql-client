@@ -228,10 +228,10 @@ describe('testConnection', () => {
     });
 
     it('returns success=false when connect throws', async () => {
-      mssql.__mockConnect.mockRejectedValueOnce(new Error('Login failed'));
+      mssql.__mockConnect.mockRejectedValueOnce(new Error('Connection failed'));
       const result = await testConnection(cfg('mssql'));
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Login failed');
+      expect(result.message).toBe('Connection failed');
     });
   });
 

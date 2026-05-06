@@ -7,29 +7,10 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('jwt_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 client.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('jwt_token');
-      localStorage.removeItem('auth_username');
-    }
-    return Promise.reject(error);
-  }
+  (error: AxiosError) => Promise.reject(error)
 );
-
-export interface LoginResponse {
-  token: string;
-  expiresIn: number;
-}
 
 export interface ConnectionConfig {
   id: string;
@@ -59,15 +40,6 @@ function extractErrorMessage(err: unknown): string {
     return data?.error ?? err.message;
   }
   return 'An unexpected error occurred';
-}
-
-export async function login(username: string, password: string): Promise<LoginResponse> {
-  try {
-    const { data } = await client.post<LoginResponse>('/api/auth/login', { username, password });
-    return data;
-  } catch (err) {
-    throw new Error(extractErrorMessage(err));
-  }
 }
 
 export async function runQuery(
