@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { ConnectionManager } from './pages/ConnectionManager';
+import { LandingPage } from './pages/LandingPage';
 import { SqlEditor } from './pages/SqlEditor';
 
 function DatabaseIcon(): React.ReactElement {
@@ -102,6 +103,7 @@ export default function App(): React.ReactElement {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/login" element={<LandingPage />} />
         <Route path="*" element={<AppLayout />} />
       </Routes>
     </BrowserRouter>
