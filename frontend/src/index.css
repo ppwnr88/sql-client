@@ -1359,10 +1359,95 @@ html, body, #root {
 
 .result-pane {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   display: flex;
   flex-direction: column;
   background: var(--main-bg);
+}
+
+.result-status-bar {
+  min-height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--main-border);
+  background: #202229;
+  color: #b4bac4;
+  font: 11.5px/1 var(--font-mono);
+  overflow: hidden;
+}
+
+.result-status-bar.error {
+  border-top-color: rgba(255, 95, 87, 0.45);
+}
+
+.result-status-controls {
+  height: 100%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid #3a3e47;
+}
+
+.result-status-icon {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-right: 1px solid #3a3e47;
+  background: transparent;
+  color: var(--accent-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.result-status-icon:hover,
+.result-status-icon:focus-visible {
+  background: rgba(255,255,255,0.05);
+  color: var(--main-text);
+  outline: none;
+}
+
+.result-max-rows {
+  width: 68px;
+  height: 22px;
+  margin: 0 8px;
+  padding: 0 5px;
+  border: 1px solid #4b505a;
+  border-radius: 2px;
+  background: #52545a;
+  color: #f0f2f5;
+  font: 11.5px/1 var(--font-mono);
+  outline: none;
+}
+
+.result-max-rows:focus {
+  border-color: var(--accent-secondary);
+}
+
+.result-max-rows::-webkit-inner-spin-button {
+  opacity: 0.5;
+}
+
+.result-status-returned {
+  min-width: 28px;
+  padding-right: 9px;
+  color: #aeb4be;
+}
+
+.result-status-message {
+  min-width: 0;
+  padding-right: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.result-status-bar.error .result-status-message {
+  color: var(--danger-hover);
 }
 
 .result-error-wrap {
@@ -1786,6 +1871,25 @@ html, body, #root {
   .sql-textarea {
     min-height: 140px;
     resize: vertical;
+  }
+
+  .result-status-bar {
+    min-height: 34px;
+    gap: 7px;
+    font-size: 10.5px;
+  }
+
+  .result-status-timestamp {
+    display: none;
+  }
+
+  .result-max-rows {
+    width: 56px;
+    margin: 0 5px;
+  }
+
+  .result-status-returned {
+    display: none;
   }
 
   /* History as overlay on mobile */

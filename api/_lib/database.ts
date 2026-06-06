@@ -17,6 +17,9 @@ export interface QueryResult {
   columns: string[];
   rows: Record<string, unknown>[];
   rowCount: number;
+  returnedRowCount: number;
+  totalRowCount: number;
+  truncated: boolean;
   duration: number;
 }
 
@@ -32,16 +35,16 @@ export interface ColumnMetadata {
 }
 export type MetadataResult = SchemaMetadata[] | TableMetadata[] | ColumnMetadata[];
 
-export async function runQuery(config: DatabaseConfig, sqlQuery: string): Promise<QueryResult> {
+export async function runQuery(config: DatabaseConfig, sqlQuery: string, maxRows = 200): Promise<QueryResult> {
   const start = Date.now();
 
   switch (config.type) {
     case 'mysql':
-      return runMysqlQuery(config, sqlQuery, start);
+      return runMysqlQuery(config, sqlQuery, start, maxRows);
     case 'postgresql':
-      return runPostgresQuery(config, sqlQuery, start);
+      return runPostgresQuery(config, sqlQuery, start, maxRows);
     case 'mssql':
-      return runMssqlQuery(config, sqlQuery, start);
+      return runMssqlQuery(config, sqlQuery, start, maxRows);
     default:
       throw new Error(`Unsupported database type: ${config.type}`);
   }
@@ -50,7 +53,8 @@ export async function runQuery(config: DatabaseConfig, sqlQuery: string): Promis
 async function runMysqlQuery(
   config: DatabaseConfig,
   sqlQuery: string,
-  start: number
+  start: number,
+  maxRows: number
 ): Promise<QueryResult> {
   const connection = await mysql.createConnection({
     host: config.host,
@@ -74,7 +78,7 @@ async function runMysqlQuery(
         }
         return normalized;
       });
-      return { columns, rows: normalizedRows, rowCount: normalizedRows.length, duration };
+      return limitedQueryResult(columns, normalizedRows, duration, maxRows);
     }
 
     const resultHeader = rows as mysql.ResultSetHeader;
@@ -82,6 +86,9 @@ async function runMysqlQuery(
       columns: ['affectedRows', 'insertId'],
       rows: [{ affectedRows: resultHeader.affectedRows, insertId: resultHeader.insertId }],
       rowCount: resultHeader.affectedRows,
+      returnedRowCount: 1,
+      totalRowCount: resultHeader.affectedRows,
+      truncated: false,
       duration,
     };
   } finally {
@@ -92,7 +99,8 @@ async function runMysqlQuery(
 async function runPostgresQuery(
   config: DatabaseConfig,
   sqlQuery: string,
-  start: number
+  start: number,
+  maxRows: number
 ): Promise<QueryResult> {
   const client = new PgClient({
     host: config.host,
@@ -111,18 +119,16 @@ async function runPostgresQuery(
 
     if (result.fields && result.fields.length > 0) {
       const columns = result.fields.map((f) => f.name);
-      return {
-        columns,
-        rows: result.rows as Record<string, unknown>[],
-        rowCount: result.rowCount ?? result.rows.length,
-        duration,
-      };
+      return limitedQueryResult(columns, result.rows as Record<string, unknown>[], duration, maxRows);
     }
 
     return {
       columns: ['affectedRows'],
       rows: [{ affectedRows: result.rowCount ?? 0 }],
       rowCount: result.rowCount ?? 0,
+      returnedRowCount: 1,
+      totalRowCount: result.rowCount ?? 0,
+      truncated: false,
       duration,
     };
   } finally {
@@ -133,7 +139,8 @@ async function runPostgresQuery(
 async function runMssqlQuery(
   config: DatabaseConfig,
   sqlQuery: string,
-  start: number
+  start: number,
+  maxRows: number
 ): Promise<QueryResult> {
   const pool = new sql.ConnectionPool({
     server: config.host,
@@ -155,23 +162,40 @@ async function runMssqlQuery(
 
     if (result.recordset && result.recordset.length > 0) {
       const columns = Object.keys(result.recordset[0]);
-      return {
-        columns,
-        rows: result.recordset as Record<string, unknown>[],
-        rowCount: result.recordset.length,
-        duration,
-      };
+      return limitedQueryResult(columns, result.recordset as Record<string, unknown>[], duration, maxRows);
     }
 
     return {
       columns: ['rowsAffected'],
       rows: [{ rowsAffected: result.rowsAffected[0] ?? 0 }],
       rowCount: result.rowsAffected[0] ?? 0,
+      returnedRowCount: 1,
+      totalRowCount: result.rowsAffected[0] ?? 0,
+      truncated: false,
       duration,
     };
   } finally {
     await pool.close();
   }
+}
+
+function limitedQueryResult(
+  columns: string[],
+  rows: Record<string, unknown>[],
+  duration: number,
+  maxRows: number
+): QueryResult {
+  const totalRowCount = rows.length;
+  const limitedRows = rows.slice(0, maxRows);
+  return {
+    columns,
+    rows: limitedRows,
+    rowCount: limitedRows.length,
+    returnedRowCount: limitedRows.length,
+    totalRowCount,
+    truncated: totalRowCount > limitedRows.length,
+    duration,
+  };
 }
 
 export async function testConnection(

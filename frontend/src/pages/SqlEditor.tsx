@@ -6,6 +6,31 @@ import { QueryHistory, HistoryEntry, loadHistory, appendHistory, clearHistory } 
 import { DatabaseExplorer } from '../components/DatabaseExplorer';
 
 type ExportFormat = 'csv' | 'json' | 'xml' | 'txt' | 'sql';
+const MAX_ROWS_KEY = 'sql_client_max_rows';
+const DEFAULT_MAX_ROWS = 200;
+
+interface QueryStatus {
+  completedAt: string;
+  host: string;
+  database: string;
+  renderTime: number;
+  error?: string;
+}
+
+export function clampMaxRows(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_MAX_ROWS;
+  return Math.min(10000, Math.max(1, Math.round(value)));
+}
+
+export function loadMaxRows(): number {
+  return clampMaxRows(Number(localStorage.getItem(MAX_ROWS_KEY) ?? DEFAULT_MAX_ROWS));
+}
+
+export function saveMaxRows(value: number): number {
+  const next = clampMaxRows(value);
+  localStorage.setItem(MAX_ROWS_KEY, String(next));
+  return next;
+}
 
 function getCellString(value: unknown): string {
   if (value === null || value === undefined) return 'NULL';
@@ -150,11 +175,14 @@ export function SqlEditor(): React.ReactElement {
   const [copyFormat, setCopyFormat] = useState<ExportFormat>('csv');
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
   const [copyLabel, setCopyLabel] = useState('Copy');
+  const [maxRows, setMaxRows] = useState(loadMaxRows);
+  const [queryStatus, setQueryStatus] = useState<QueryStatus | null>(null);
   const [explorerCollapsed, setExplorerCollapsed] = useState(false);
   const [explorerMobileOpen, setExplorerMobileOpen] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestedDatabaseRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const maxRowsRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!selectedConnId && connections.length > 0) {
@@ -234,21 +262,46 @@ export function SqlEditor(): React.ReactElement {
 
   const handleRun = useCallback(async (): Promise<void> => {
     if (!selectedConn) {
-      setError('Please select a connection first');
+      const message = 'Please select a connection first';
+      setError(message);
+      setQueryStatus({
+        completedAt: new Date().toISOString(),
+        host: '-',
+        database: selectedDatabase || '-',
+        renderTime: 0,
+        error: message,
+      });
       return;
     }
     if (!selectedDatabase) {
-      setError('Please select a database first');
+      const message = 'Please select a database first';
+      setError(message);
+      setQueryStatus({
+        completedAt: new Date().toISOString(),
+        host: selectedConn.host,
+        database: '-',
+        renderTime: 0,
+        error: message,
+      });
       return;
     }
     if (!sql.trim()) {
-      setError('Please enter a SQL query');
+      const message = 'Please enter a SQL query';
+      setError(message);
+      setQueryStatus({
+        completedAt: new Date().toISOString(),
+        host: selectedConn.host,
+        database: selectedDatabase,
+        renderTime: 0,
+        error: message,
+      });
       return;
     }
 
     setIsRunning(true);
     setError(null);
     setResult(null);
+    setQueryStatus(null);
 
     try {
       const queryResult = await runQuery(
@@ -260,9 +313,19 @@ export function SqlEditor(): React.ReactElement {
           password: selectedConn.password,
           database: selectedDatabase,
         },
-        sql
+        sql,
+        maxRows
       );
+      const responseReceivedAt = performance.now();
       setResult(queryResult);
+      requestAnimationFrame(() => {
+        setQueryStatus({
+          completedAt: new Date().toISOString(),
+          host: selectedConn.host,
+          database: selectedDatabase,
+          renderTime: Math.max(0, performance.now() - responseReceivedAt),
+        });
+      });
       appendHistory({
         sql,
         connectionName: selectedConn.name,
@@ -275,6 +338,13 @@ export function SqlEditor(): React.ReactElement {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Query failed';
       setError(message);
+      setQueryStatus({
+        completedAt: new Date().toISOString(),
+        host: selectedConn.host,
+        database: selectedDatabase,
+        renderTime: 0,
+        error: message,
+      });
       appendHistory({
         sql,
         connectionName: selectedConn.name,
@@ -285,7 +355,11 @@ export function SqlEditor(): React.ReactElement {
     } finally {
       setIsRunning(false);
     }
-  }, [selectedConn, selectedDatabase, sql]);
+  }, [selectedConn, selectedDatabase, sql, maxRows]);
+
+  function handleMaxRowsChange(value: string): void {
+    setMaxRows(saveMaxRows(Number(value)));
+  }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>): void {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -492,9 +566,6 @@ export function SqlEditor(): React.ReactElement {
             {result && (
               <>
                 <div className="result-header">
-                  <span>
-                    {result.rowCount} row{result.rowCount !== 1 ? 's' : ''} &nbsp;·&nbsp; {result.duration}ms
-                  </span>
                   <span style={{ marginRight: 'auto' }}>{result.columns.length} column{result.columns.length !== 1 ? 's' : ''}</span>
 
                   {/* Copy controls */}
@@ -574,6 +645,53 @@ export function SqlEditor(): React.ReactElement {
                 <span>Executing query...</span>
               </div>
             )}
+          </div>
+          <div className={`result-status-bar${error ? ' error' : ''}`}>
+            <div className="result-status-controls">
+              <button
+                className="result-status-icon"
+                title="Set maximum returned rows"
+                onClick={() => maxRowsRef.current?.focus()}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1A1.7 1.7 0 0 0 2.9 13H3V9h-.1A1.7 1.7 0 0 0 4.6 8a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6A1.7 1.7 0 0 0 10.4 2.9V3h4v-.1A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.4.25.72.6.9 1 .12.3.18.63.18 1H21v4h-.52c0 .37-.06.7-.18 1-.18.4-.5.75-.9 1Z" />
+                </svg>
+              </button>
+              <input
+                ref={maxRowsRef}
+                className="result-max-rows"
+                type="number"
+                min="1"
+                max="10000"
+                value={maxRows}
+                title="Maximum returned rows"
+                onChange={(event) => handleMaxRowsChange(event.target.value)}
+              />
+              <span className="result-status-returned">{result?.returnedRowCount ?? 0}</span>
+            </div>
+            <div className="result-status-message">
+              {isRunning ? (
+                <span>Executing query...</span>
+              ) : queryStatus?.error ? (
+                <span title={queryStatus.error}>Error: {queryStatus.error}</span>
+              ) : result && queryStatus ? (
+                <>
+                  <span>
+                    {result.returnedRowCount} row{result.returnedRowCount !== 1 ? 's' : ''} fetched
+                    {result.truncated ? ` · limited from ${result.totalRowCount} rows` : ''}
+                    {' · '}{(result.duration / 1000).toFixed(3)}s total
+                    {' · '}{queryStatus.renderTime.toFixed(1)}ms render
+                  </span>
+                  <span className="result-status-timestamp">
+                    {' · '}{new Date(queryStatus.completedAt).toLocaleString()}
+                  </span>
+                  <span>{` [${queryStatus.host} / ${queryStatus.database}]`}</span>
+                </>
+              ) : (
+                <span>Ready</span>
+              )}
+            </div>
           </div>
         </div>
 

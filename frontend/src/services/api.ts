@@ -27,6 +27,9 @@ export interface QueryResult {
   columns: string[];
   rows: Record<string, unknown>[];
   rowCount: number;
+  returnedRowCount: number;
+  totalRowCount: number;
+  truncated: boolean;
   duration: number;
 }
 
@@ -64,10 +67,11 @@ function extractErrorMessage(err: unknown): string {
 
 export async function runQuery(
   connection: Omit<ConnectionConfig, 'id' | 'name'>,
-  sql: string
+  sql: string,
+  maxRows: number
 ): Promise<QueryResult> {
   try {
-    const { data } = await client.post<QueryResult>('/api/query', { connection, sql });
+    const { data } = await client.post<QueryResult>('/api/query', { connection, sql, maxRows });
     return data;
   } catch (err) {
     throw new Error(extractErrorMessage(err));

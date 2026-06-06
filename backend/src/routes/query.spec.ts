@@ -76,7 +76,8 @@ describe('POST /api/query', () => {
     expect(res.body).toEqual(fakeResult);
     expect(mockRunQuery).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'mysql', host: 'localhost', database: 'test' }),
-      'SELECT 1'
+      'SELECT 1',
+      200
     );
   });
 
@@ -92,8 +93,21 @@ describe('POST /api/query', () => {
 
     expect(mockRunQuery).toHaveBeenCalledWith(
       expect.objectContaining({ port: 5432 }),
-      'SELECT 1'
+      'SELECT 1',
+      200
     );
+  });
+
+  it('passes a custom maxRows value to the database service', async () => {
+    mockRunQuery.mockResolvedValueOnce({ columns: [], rows: [], rowCount: 0, duration: 1 });
+    await request(app).post('/api/query').send({ ...validBody, maxRows: 500 });
+    expect(mockRunQuery).toHaveBeenCalledWith(expect.anything(), 'SELECT 1', 500);
+  });
+
+  it.each([0, 10001, 1.5, '200'])('rejects invalid maxRows value %p', async (maxRows) => {
+    const response = await request(app).post('/api/query').send({ ...validBody, maxRows });
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/maxRows/i);
   });
 
   it('returns 500 when runQuery throws', async () => {

@@ -98,6 +98,7 @@ describe('runQuery', () => {
       expect(result.columns).toEqual(['id', 'name']);
       expect(result.rows).toHaveLength(2);
       expect(result.rowCount).toBe(2);
+      expect(result.truncated).toBe(false);
       expect(result.duration).toBeGreaterThanOrEqual(0);
       expect(mysql.__mockEnd).toHaveBeenCalled();
     });
@@ -111,6 +112,19 @@ describe('runQuery', () => {
       expect(result.columns).toEqual(['affectedRows', 'insertId']);
       expect(result.rows[0].affectedRows).toBe(3);
       expect(result.rowCount).toBe(3);
+      expect(result.truncated).toBe(false);
+    });
+
+    it('limits SELECT response rows and reports truncation metadata', async () => {
+      const fields = [{ name: 'id' }];
+      mysql.__mockExecute.mockResolvedValueOnce([[{ id: 1 }, { id: 2 }, { id: 3 }], fields]);
+
+      const result = await runQuery(cfg('mysql'), 'SELECT id FROM users', 2);
+
+      expect(result.rows).toEqual([{ id: 1 }, { id: 2 }]);
+      expect(result.returnedRowCount).toBe(2);
+      expect(result.totalRowCount).toBe(3);
+      expect(result.truncated).toBe(true);
     });
 
     it('closes connection even when execute throws', async () => {
