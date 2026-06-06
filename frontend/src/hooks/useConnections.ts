@@ -21,12 +21,26 @@ function generateId(): string {
   return `conn_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function downloadConnections(connections: ConnectionConfig[], filename: string): void {
+  const payload = {
+    connections: connections.map(({ id: _id, ...rest }) => rest),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 interface UseConnectionsReturn {
   connections: ConnectionConfig[];
   addConnection: (conn: Omit<ConnectionConfig, 'id'>) => ConnectionConfig;
   updateConnection: (id: string, updates: Partial<Omit<ConnectionConfig, 'id'>>) => void;
   deleteConnection: (id: string) => void;
   importConnections: (incoming: Omit<ConnectionConfig, 'id'>[]) => void;
+  exportConnection: (id: string) => void;
   exportConnections: () => void;
 }
 
@@ -74,17 +88,19 @@ export function useConnections(): UseConnectionsReturn {
     []
   );
 
+  const exportConnection = useCallback((id: string): void => {
+    const connection = connections.find((conn) => conn.id === id);
+    if (!connection) return;
+
+    const safeName = connection.name
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'connection';
+    downloadConnections([connection], `sql-client-${safeName}.json`);
+  }, [connections]);
+
   const exportConnections = useCallback((): void => {
-    const payload = {
-      connections: connections.map(({ id: _id, ...rest }) => rest),
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sql-client-connections.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadConnections(connections, 'sql-client-connections.json');
   }, [connections]);
 
   return {
@@ -93,6 +109,7 @@ export function useConnections(): UseConnectionsReturn {
     updateConnection,
     deleteConnection,
     importConnections,
+    exportConnection,
     exportConnections,
   };
 }

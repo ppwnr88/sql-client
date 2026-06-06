@@ -164,4 +164,45 @@ describe('useConnections', () => {
     anchorSpy.mockRestore();
     vi.unstubAllGlobals();
   });
+
+  it('exportConnection downloads only the selected connection', async () => {
+    const { result } = renderHook(() => useConnections());
+    let selectedId = '';
+    act(() => {
+      selectedId = result.current.addConnection({ ...base, name: 'local dev' }).id;
+      result.current.addConnection({ ...base, name: 'staging' });
+    });
+
+    const createObjectURL = vi.fn().mockReturnValue('blob:url');
+    const revokeObjectURL = vi.fn();
+    const anchor = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+    };
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
+    const anchorSpy = vi.spyOn(document, 'createElement').mockReturnValueOnce(
+      anchor as unknown as HTMLAnchorElement
+    );
+
+    act(() => { result.current.exportConnection(selectedId); });
+
+    expect(anchor.click).toHaveBeenCalledTimes(1);
+    expect(anchor.download).toBe('sql-client-local-dev.json');
+
+    const blobArg: Blob = createObjectURL.mock.calls[0][0];
+    const text = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsText(blobArg);
+    });
+    const parsed = JSON.parse(text);
+    expect(parsed.connections).toHaveLength(1);
+    expect(parsed.connections[0].id).toBeUndefined();
+    expect(parsed.connections[0].name).toBe('local dev');
+
+    anchorSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
 });
