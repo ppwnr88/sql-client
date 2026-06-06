@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, Outlet } from 'react-router-dom';
 import { ConnectionManager } from './pages/ConnectionManager';
 import { LandingPage } from './pages/LandingPage';
 import { SqlEditor } from './pages/SqlEditor';
@@ -70,10 +70,7 @@ function AppLayout(): React.ReactElement {
 
       {/* Page content */}
       <div className="app-content">
-        <Routes>
-          <Route path="/editor" element={<SqlEditor />} />
-          <Route path="/connections" element={<ConnectionManager />} />
-        </Routes>
+        <Outlet />
       </div>
 
       {/* Mobile bottom tab bar */}
@@ -102,8 +99,10 @@ export default function App(): React.ReactElement {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/editor/*" element={<AppLayout />} />
-        <Route path="/connections/*" element={<AppLayout />} />
+        <Route element={<AppLayout />}>
+          <Route path="/editor" element={<SqlEditor />} />
+          <Route path="/connections" element={<ConnectionManager />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
