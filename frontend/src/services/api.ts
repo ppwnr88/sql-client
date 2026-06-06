@@ -34,6 +34,26 @@ export interface ApiError {
   error: string;
 }
 
+export interface SchemaMetadata {
+  name: string;
+}
+
+export interface TableMetadata {
+  name: string;
+  schema: string;
+}
+
+export interface ColumnMetadata {
+  name: string;
+  dataType: string;
+  nullable: boolean;
+  primaryKey: boolean;
+  ordinalPosition: number;
+}
+
+export type MetadataResource = 'schemas' | 'tables' | 'columns';
+export type MetadataItem = SchemaMetadata | TableMetadata | ColumnMetadata;
+
 function extractErrorMessage(err: unknown): string {
   if (err instanceof AxiosError) {
     const data = err.response?.data as ApiError | undefined;
@@ -74,6 +94,25 @@ export async function listDatabases(
   try {
     const { data } = await client.post<{ databases: string[] }>('/api/databases', connection);
     return data.databases;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err));
+  }
+}
+
+export async function listMetadata<T extends MetadataItem>(
+  connection: Omit<ConnectionConfig, 'id' | 'name'>,
+  resource: MetadataResource,
+  schema?: string,
+  table?: string
+): Promise<T[]> {
+  try {
+    const { data } = await client.post<{ items: T[] }>('/api/metadata', {
+      connection,
+      resource,
+      schema,
+      table,
+    });
+    return data.items;
   } catch (err) {
     throw new Error(extractErrorMessage(err));
   }

@@ -44,7 +44,12 @@ jest.mock('mssql', () => {
   const mockConnect = jest.fn().mockResolvedValue(undefined);
   const mockQuery = jest.fn();
   const mockClose = jest.fn().mockResolvedValue(undefined);
-  const mockRequest = jest.fn().mockReturnValue({ query: mockQuery });
+  const request = {
+    query: mockQuery,
+    input: jest.fn(),
+  };
+  request.input.mockReturnValue(request);
+  const mockRequest = jest.fn().mockReturnValue(request);
   const MockConnectionPool = jest.fn().mockImplementation(() => ({
     connect: mockConnect,
     request: mockRequest,
@@ -52,6 +57,7 @@ jest.mock('mssql', () => {
   }));
   return {
     ConnectionPool: MockConnectionPool,
+    NVarChar: 'NVarChar',
     connect: jest.fn().mockResolvedValue({
       request: mockRequest,
       close: mockClose,
@@ -60,10 +66,11 @@ jest.mock('mssql', () => {
     __mockQuery: mockQuery,
     __mockClose: mockClose,
     __mockRequest: mockRequest,
+    __mockInput: request.input,
   };
 });
 
-import { runQuery, testConnection, DatabaseConfig } from './database';
+import { runQuery, testConnection, listMetadata, DatabaseConfig } from './database';
 import * as mysqlMod from 'mysql2/promise';
 import * as pgMod from 'pg';
 import * as mssqlMod from 'mssql';
@@ -239,5 +246,41 @@ describe('testConnection', () => {
     const result = await testConnection({ ...cfg('mysql'), type: 'oracle' as never });
     expect(result.success).toBe(false);
     expect(result.message).toMatch(/unsupported database type/i);
+  });
+});
+
+describe('listMetadata', () => {
+  it('normalizes MySQL columns and uses parameterized filters', async () => {
+    mysql.__mockExecute.mockResolvedValueOnce([[
+      { name: 'id', dataType: 'int', nullable: 'NO', primaryKey: 1, ordinalPosition: 1 },
+    ]]);
+
+    const result = await listMetadata(cfg('mysql'), 'columns', undefined, 'users');
+
+    expect(result).toEqual([{
+      name: 'id', dataType: 'int', nullable: false, primaryKey: true, ordinalPosition: 1,
+    }]);
+    expect(mysql.__mockExecute).toHaveBeenCalledWith(expect.stringContaining('table_name = ?'), ['test', 'users']);
+  });
+
+  it('filters PostgreSQL tables by schema with a parameter', async () => {
+    pg.__mockQuery.mockResolvedValueOnce({ rows: [{ name: 'users', schema: 'public' }] });
+
+    const result = await listMetadata(cfg('postgresql'), 'tables', 'public');
+
+    expect(result).toEqual([{ name: 'users', schema: 'public' }]);
+    expect(pg.__mockQuery).toHaveBeenCalledWith(expect.stringContaining('table_schema = $1'), ['public']);
+  });
+
+  it('uses MSSQL request inputs for column filters', async () => {
+    mssql.__mockQuery.mockResolvedValueOnce({
+      recordset: [{ name: 'id', dataType: 'int', nullable: false, primaryKey: 1, ordinalPosition: 1 }],
+    });
+
+    const result = await listMetadata(cfg('mssql'), 'columns', 'dbo', 'users');
+
+    expect(result).toHaveLength(1);
+    expect(mssql.__mockInput).toHaveBeenCalledWith('schema', expect.anything(), 'dbo');
+    expect(mssql.__mockInput).toHaveBeenCalledWith('table', expect.anything(), 'users');
   });
 });

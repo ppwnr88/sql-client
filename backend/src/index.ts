@@ -4,6 +4,7 @@ import cors from 'cors';
 import queryRouter from './routes/query';
 import testConnectionRouter from './routes/testConnection';
 import databasesRouter from './routes/databases';
+import metadataRouter from './routes/metadata';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -23,6 +24,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/query', queryRouter);
 app.use('/api/test-connection', testConnectionRouter);
 app.use('/api/databases', databasesRouter);
+app.use('/api/metadata', metadataRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });

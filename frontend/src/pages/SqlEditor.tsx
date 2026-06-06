@@ -3,6 +3,7 @@ import { listDatabases, runQuery, QueryResult } from '../services/api';
 import { useConnections } from '../hooks/useConnections';
 import { ResultTable } from '../components/ResultTable';
 import { QueryHistory, HistoryEntry, loadHistory, appendHistory, clearHistory } from '../components/QueryHistory';
+import { DatabaseExplorer } from '../components/DatabaseExplorer';
 
 type ExportFormat = 'csv' | 'json' | 'xml' | 'txt' | 'sql';
 
@@ -124,6 +125,15 @@ function downloadFile(content: string, format: ExportFormat): void {
   URL.revokeObjectURL(url);
 }
 
+export function quoteIdentifier(name: string, type: 'mysql' | 'postgresql' | 'mssql'): string {
+  if (type === 'mysql') return `\`${name.replace(/`/g, '``')}\``;
+  if (type === 'mssql') {
+    const escaped = name.replace(/\]/g, ']]');
+    return `[${escaped}]`;
+  }
+  return `"${name.replace(/"/g, '""')}"`;
+}
+
 export function SqlEditor(): React.ReactElement {
   const { connections } = useConnections();
   const [selectedConnId, setSelectedConnId] = useState<string>('');
@@ -140,7 +150,11 @@ export function SqlEditor(): React.ReactElement {
   const [copyFormat, setCopyFormat] = useState<ExportFormat>('csv');
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
   const [copyLabel, setCopyLabel] = useState('Copy');
+  const [explorerCollapsed, setExplorerCollapsed] = useState(false);
+  const [explorerMobileOpen, setExplorerMobileOpen] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestedDatabaseRef = useRef<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!selectedConnId && connections.length > 0) {
@@ -162,7 +176,8 @@ export function SqlEditor(): React.ReactElement {
     setIsLoadingDatabases(true);
     setDatabaseError(null);
     setDatabases([]);
-    setSelectedDatabase(selectedConn.database ?? '');
+    const requestedDatabase = requestedDatabaseRef.current;
+    setSelectedDatabase(requestedDatabase ?? selectedConn.database ?? '');
 
     void listDatabases({
       type: selectedConn.type,
@@ -179,6 +194,7 @@ export function SqlEditor(): React.ReactElement {
           if (current && databaseNames.includes(current)) return current;
           return databaseNames[0] ?? '';
         });
+        requestedDatabaseRef.current = null;
       })
       .catch((err) => {
         if (cancelled) return;
@@ -192,6 +208,29 @@ export function SqlEditor(): React.ReactElement {
       cancelled = true;
     };
   }, [selectedConn]);
+
+  function handleExplorerSelectDatabase(connectionId: string, database: string): void {
+    requestedDatabaseRef.current = database;
+    setSelectedConnId(connectionId);
+    setSelectedDatabase(database);
+    setExplorerMobileOpen(false);
+  }
+
+  function handleInsertIdentifier(
+    connection: { type: 'mysql' | 'postgresql' | 'mssql' },
+    parts: string[]
+  ): void {
+    const identifier = parts.map((part) => quoteIdentifier(part, connection.type)).join('.');
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? sql.length;
+    const end = textarea?.selectionEnd ?? sql.length;
+    setSql((current) => `${current.slice(0, start)}${identifier}${current.slice(end)}`);
+    requestAnimationFrame(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(start + identifier.length, start + identifier.length);
+    });
+    setExplorerMobileOpen(false);
+  }
 
   const handleRun = useCallback(async (): Promise<void> => {
     if (!selectedConn) {
@@ -311,7 +350,10 @@ export function SqlEditor(): React.ReactElement {
               <select
                 className="form-select editor-conn-select"
                 value={selectedConnId}
-                onChange={(e) => setSelectedConnId(e.target.value)}
+                onChange={(e) => {
+                  requestedDatabaseRef.current = null;
+                  setSelectedConnId(e.target.value);
+                }}
               >
                 <option value="">Select connection...</option>
                 {connections.map((conn) => (
@@ -382,14 +424,45 @@ export function SqlEditor(): React.ReactElement {
             </svg>
             History
           </button>
+
+          <button
+            className="btn btn-ghost btn-sm editor-explorer-btn"
+            onClick={() => {
+              if (window.matchMedia('(max-width: 767px)').matches) setExplorerMobileOpen(true);
+              else setExplorerCollapsed((value) => !value);
+            }}
+            title="Toggle database explorer"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <ellipse cx="12" cy="5" rx="9" ry="3" />
+              <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+              <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
+            </svg>
+            Explorer
+          </button>
         </div>
       </div>
 
       {/* Body: textarea + results + optional history panel */}
       <div className="editor-body">
+        <DatabaseExplorer
+          connections={connections}
+          activeConnectionId={selectedConnId}
+          activeDatabase={selectedDatabase}
+          collapsed={explorerCollapsed}
+          mobileOpen={explorerMobileOpen}
+          onCollapse={() => {
+            setExplorerCollapsed(true);
+            setExplorerMobileOpen(false);
+          }}
+          onCloseMobile={() => setExplorerMobileOpen(false)}
+          onSelectDatabase={handleExplorerSelectDatabase}
+          onInsertIdentifier={handleInsertIdentifier}
+        />
         <div className="editor-main">
           <div className="editor-pane">
             <textarea
+              ref={textareaRef}
               className="sql-textarea"
               value={sql}
               onChange={(e) => setSql(e.target.value)}
