@@ -68,10 +68,11 @@ function extractErrorMessage(err: unknown): string {
 export async function runQuery(
   connection: Omit<ConnectionConfig, 'id' | 'name'>,
   sql: string,
-  maxRows: number
+  maxRows: number,
+  offset = 0
 ): Promise<QueryResult> {
   try {
-    const { data } = await client.post<QueryResult>('/api/query', { connection, sql, maxRows });
+    const { data } = await client.post<QueryResult>('/api/query', { connection, sql, maxRows, offset });
     return data;
   } catch (err) {
     throw new Error(extractErrorMessage(err));

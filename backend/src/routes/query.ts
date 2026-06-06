@@ -14,13 +14,14 @@ interface QueryRequestBody {
   };
   sql?: string;
   maxRows?: number;
+  offset?: number;
 }
 
 const VALID_DB_TYPES: DatabaseType[] = ['mysql', 'postgresql', 'mssql'];
 
 router.post('/', async (req: Request, res: Response): Promise<void> => {
   const body = req.body as QueryRequestBody;
-  const { connection, sql, maxRows = 200 } = body;
+  const { connection, sql, maxRows = 200, offset = 0 } = body;
 
   if (!connection) {
     res.status(400).json({ error: 'Connection configuration is required' });
@@ -33,6 +34,10 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   }
   if (!Number.isInteger(maxRows) || maxRows < 1 || maxRows > 10000) {
     res.status(400).json({ error: 'maxRows must be an integer between 1 and 10000' });
+    return;
+  }
+  if (!Number.isInteger(offset) || offset < 0) {
+    res.status(400).json({ error: 'offset must be a non-negative integer' });
     return;
   }
 
@@ -58,7 +63,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   };
 
   try {
-    const result = await runQuery(dbConfig, sql, maxRows);
+    const result = await runQuery(dbConfig, sql, maxRows, offset);
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Query execution failed';

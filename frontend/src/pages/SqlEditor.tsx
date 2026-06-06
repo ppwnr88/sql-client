@@ -17,6 +17,11 @@ interface QueryStatus {
   error?: string;
 }
 
+interface ActiveQuery {
+  connection: Parameters<typeof runQuery>[0];
+  sql: string;
+}
+
 export function clampMaxRows(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_MAX_ROWS;
   return Math.min(10000, Math.max(1, Math.round(value)));
@@ -170,6 +175,8 @@ export function SqlEditor(): React.ReactElement {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>(loadHistory);
   const [showHistory, setShowHistory] = useState(false);
   const [copyFormat, setCopyFormat] = useState<ExportFormat>('csv');
@@ -183,6 +190,8 @@ export function SqlEditor(): React.ReactElement {
   const requestedDatabaseRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const maxRowsRef = useRef<HTMLInputElement>(null);
+  const activeQueryRef = useRef<ActiveQuery | null>(null);
+  const loadingMoreRef = useRef(false);
 
   useEffect(() => {
     if (!selectedConnId && connections.length > 0) {
@@ -302,21 +311,25 @@ export function SqlEditor(): React.ReactElement {
     setError(null);
     setResult(null);
     setQueryStatus(null);
+    setLoadMoreFailed(false);
+    activeQueryRef.current = null;
 
     try {
+      const connection = {
+        type: selectedConn.type,
+        host: selectedConn.host,
+        port: selectedConn.port,
+        user: selectedConn.user,
+        password: selectedConn.password,
+        database: selectedDatabase,
+      };
       const queryResult = await runQuery(
-        {
-          type: selectedConn.type,
-          host: selectedConn.host,
-          port: selectedConn.port,
-          user: selectedConn.user,
-          password: selectedConn.password,
-          database: selectedDatabase,
-        },
+        connection,
         sql,
         maxRows
       );
       const responseReceivedAt = performance.now();
+      activeQueryRef.current = queryResult.truncated ? { connection, sql } : null;
       setResult(queryResult);
       requestAnimationFrame(() => {
         setQueryStatus({
@@ -356,6 +369,54 @@ export function SqlEditor(): React.ReactElement {
       setIsRunning(false);
     }
   }, [selectedConn, selectedDatabase, sql, maxRows]);
+
+  const handleLoadMore = useCallback(async (): Promise<void> => {
+    const activeQuery = activeQueryRef.current;
+    if (!activeQuery || !result?.truncated || loadingMoreRef.current) return;
+
+    loadingMoreRef.current = true;
+    setIsLoadingMore(true);
+    setError(null);
+    try {
+      const batch = await runQuery(activeQuery.connection, activeQuery.sql, maxRows, result.rows.length);
+      const responseReceivedAt = performance.now();
+      setResult((current) => {
+        if (!current) return batch;
+        const rows = [...current.rows, ...batch.rows];
+        return {
+          ...batch,
+          rows,
+          rowCount: rows.length,
+          returnedRowCount: rows.length,
+          duration: current.duration + batch.duration,
+        };
+      });
+      if (!batch.truncated) activeQueryRef.current = null;
+      setLoadMoreFailed(false);
+      requestAnimationFrame(() => {
+        setQueryStatus({
+          completedAt: new Date().toISOString(),
+          host: activeQuery.connection.host,
+          database: activeQuery.connection.database ?? '-',
+          renderTime: Math.max(0, performance.now() - responseReceivedAt),
+        });
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load more rows';
+      setLoadMoreFailed(true);
+      setError(message);
+      setQueryStatus({
+        completedAt: new Date().toISOString(),
+        host: activeQuery.connection.host,
+        database: activeQuery.connection.database ?? '-',
+        renderTime: 0,
+        error: message,
+      });
+    } finally {
+      loadingMoreRef.current = false;
+      setIsLoadingMore(false);
+    }
+  }, [maxRows, result]);
 
   function handleMaxRowsChange(value: string): void {
     setMaxRows(saveMaxRows(Number(value)));
@@ -629,7 +690,11 @@ export function SqlEditor(): React.ReactElement {
                     </button>
                   </div>
                 </div>
-                <ResultTable result={result} />
+                <ResultTable
+                  result={result}
+                  isLoadingMore={isLoadingMore}
+                  onLoadMore={result.truncated && !loadMoreFailed ? () => void handleLoadMore() : undefined}
+                />
               </>
             )}
 
@@ -673,13 +738,14 @@ export function SqlEditor(): React.ReactElement {
             <div className="result-status-message">
               {isRunning ? (
                 <span>Executing query...</span>
+              ) : isLoadingMore ? (
+                <span>Loading next {maxRows} rows...</span>
               ) : queryStatus?.error ? (
                 <span title={queryStatus.error}>Error: {queryStatus.error}</span>
               ) : result && queryStatus ? (
                 <>
                   <span>
-                    {result.returnedRowCount} row{result.returnedRowCount !== 1 ? 's' : ''} fetched
-                    {result.truncated ? ` · limited from ${result.totalRowCount} rows` : ''}
+                    {result.returnedRowCount} of {result.totalRowCount} row{result.totalRowCount !== 1 ? 's' : ''} loaded
                     {' · '}{(result.duration / 1000).toFixed(3)}s total
                     {' · '}{queryStatus.renderTime.toFixed(1)}ms render
                   </span>

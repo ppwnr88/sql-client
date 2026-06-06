@@ -1568,6 +1568,23 @@ html, body, #root {
   flex: 1;
 }
 
+.result-load-more {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--main-muted);
+  font: 11px/1 var(--font-mono);
+  border-top: 1px solid var(--main-border);
+  background: var(--main-bg);
+}
+
+.result-load-more .spinner {
+  width: 12px;
+  height: 12px;
+}
+
 .result-table {
   width: 100%;
   border-collapse: collapse;

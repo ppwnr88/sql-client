@@ -127,6 +127,18 @@ describe('runQuery', () => {
       expect(result.truncated).toBe(true);
     });
 
+    it('returns the requested SELECT response batch using offset', async () => {
+      const fields = [{ name: 'id' }];
+      mysql.__mockExecute.mockResolvedValueOnce([[{ id: 1 }, { id: 2 }, { id: 3 }], fields]);
+
+      const result = await runQuery(cfg('mysql'), 'SELECT id FROM users', 2, 2);
+
+      expect(result.rows).toEqual([{ id: 3 }]);
+      expect(result.returnedRowCount).toBe(1);
+      expect(result.totalRowCount).toBe(3);
+      expect(result.truncated).toBe(false);
+    });
+
     it('closes connection even when execute throws', async () => {
       mysql.__mockExecute.mockRejectedValueOnce(new Error('syntax error'));
 

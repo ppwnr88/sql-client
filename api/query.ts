@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  const { connection, sql, maxRows = 200 } = req.body as {
+  const { connection, sql, maxRows = 200, offset = 0 } = req.body as {
     connection?: {
       type?: string;
       host?: string;
@@ -37,6 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     };
     sql?: string;
     maxRows?: number;
+    offset?: number;
   };
 
   if (!connection) {
@@ -50,6 +51,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
   if (!Number.isInteger(maxRows) || maxRows < 1 || maxRows > 10000) {
     res.status(400).json({ error: 'maxRows must be an integer between 1 and 10000' });
+    return;
+  }
+  if (!Number.isInteger(offset) || offset < 0) {
+    res.status(400).json({ error: 'offset must be a non-negative integer' });
     return;
   }
 
@@ -75,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   };
 
   try {
-    const result = await runQuery(dbConfig, sql, maxRows);
+    const result = await runQuery(dbConfig, sql, maxRows, offset);
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Query execution failed';

@@ -44,16 +44,21 @@ export interface ColumnMetadata {
 
 export type MetadataResult = SchemaMetadata[] | TableMetadata[] | ColumnMetadata[];
 
-export async function runQuery(config: DatabaseConfig, sqlQuery: string, maxRows = 200): Promise<QueryResult> {
+export async function runQuery(
+  config: DatabaseConfig,
+  sqlQuery: string,
+  maxRows = 200,
+  offset = 0
+): Promise<QueryResult> {
   const start = Date.now();
 
   switch (config.type) {
     case 'mysql':
-      return runMysqlQuery(config, sqlQuery, start, maxRows);
+      return runMysqlQuery(config, sqlQuery, start, maxRows, offset);
     case 'postgresql':
-      return runPostgresQuery(config, sqlQuery, start, maxRows);
+      return runPostgresQuery(config, sqlQuery, start, maxRows, offset);
     case 'mssql':
-      return runMssqlQuery(config, sqlQuery, start, maxRows);
+      return runMssqlQuery(config, sqlQuery, start, maxRows, offset);
     default:
       throw new Error(`Unsupported database type: ${config.type}`);
   }
@@ -63,7 +68,8 @@ async function runMysqlQuery(
   config: DatabaseConfig,
   sqlQuery: string,
   start: number,
-  maxRows: number
+  maxRows: number,
+  offset: number
 ): Promise<QueryResult> {
   const connection = await mysql.createConnection({
     host: config.host,
@@ -87,7 +93,7 @@ async function runMysqlQuery(
         }
         return normalized;
       });
-      return limitedResult(columns, normalizedRows, duration, maxRows);
+      return limitedResult(columns, normalizedRows, duration, maxRows, offset);
     }
 
     // Non-SELECT statements (INSERT, UPDATE, DELETE, etc.)
@@ -110,7 +116,8 @@ async function runPostgresQuery(
   config: DatabaseConfig,
   sqlQuery: string,
   start: number,
-  maxRows: number
+  maxRows: number,
+  offset: number
 ): Promise<QueryResult> {
   const client = new PgClient({
     host: config.host,
@@ -129,7 +136,7 @@ async function runPostgresQuery(
 
     if (result.fields && result.fields.length > 0) {
       const columns = result.fields.map((f) => f.name);
-      return limitedResult(columns, result.rows as Record<string, unknown>[], duration, maxRows);
+      return limitedResult(columns, result.rows as Record<string, unknown>[], duration, maxRows, offset);
     }
 
     return {
@@ -150,7 +157,8 @@ async function runMssqlQuery(
   config: DatabaseConfig,
   sqlQuery: string,
   start: number,
-  maxRows: number
+  maxRows: number,
+  offset: number
 ): Promise<QueryResult> {
   const pool = new sql.ConnectionPool({
     server: config.host,
@@ -172,7 +180,7 @@ async function runMssqlQuery(
 
     if (result.recordset && result.recordset.length > 0) {
       const columns = Object.keys(result.recordset[0]);
-      return limitedResult(columns, result.recordset as Record<string, unknown>[], duration, maxRows);
+      return limitedResult(columns, result.recordset as Record<string, unknown>[], duration, maxRows, offset);
     }
 
     return {
@@ -193,17 +201,18 @@ function limitedResult(
   columns: string[],
   rows: Record<string, unknown>[],
   duration: number,
-  maxRows: number
+  maxRows: number,
+  offset: number
 ): QueryResult {
   const totalRowCount = rows.length;
-  const limitedRows = rows.slice(0, maxRows);
+  const limitedRows = rows.slice(offset, offset + maxRows);
   return {
     columns,
     rows: limitedRows,
     rowCount: limitedRows.length,
     returnedRowCount: limitedRows.length,
     totalRowCount,
-    truncated: totalRowCount > limitedRows.length,
+    truncated: offset + limitedRows.length < totalRowCount,
     duration,
   };
 }

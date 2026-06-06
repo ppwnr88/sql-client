@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { QueryResult } from '../services/api';
 
 interface ResultTableProps {
   result: QueryResult;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 function formatCellValue(value: unknown): { display: string; isNull: boolean } {
@@ -21,7 +23,16 @@ function formatCellValue(value: unknown): { display: string; isNull: boolean } {
   return { display: String(value), isNull: false };
 }
 
-export function ResultTable({ result }: ResultTableProps): React.ReactElement {
+export function ResultTable({ result, isLoadingMore = false, onLoadMore }: ResultTableProps): React.ReactElement {
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = wrapRef.current;
+    if (element && onLoadMore && !isLoadingMore && element.scrollHeight <= element.clientHeight) {
+      onLoadMore();
+    }
+  }, [isLoadingMore, onLoadMore, result.rows.length]);
+
   if (result.columns.length === 0 || result.rows.length === 0) {
     return (
       <div className="result-empty">
@@ -31,7 +42,20 @@ export function ResultTable({ result }: ResultTableProps): React.ReactElement {
   }
 
   return (
-    <div className="result-table-wrap">
+    <div
+      ref={wrapRef}
+      className="result-table-wrap"
+      onScroll={(event) => {
+        const element = event.currentTarget;
+        if (
+          onLoadMore
+          && !isLoadingMore
+          && element.scrollHeight - element.scrollTop - element.clientHeight < 120
+        ) {
+          onLoadMore();
+        }
+      }}
+    >
       <table className="result-table">
         <thead>
           <tr>
@@ -67,6 +91,12 @@ export function ResultTable({ result }: ResultTableProps): React.ReactElement {
           ))}
         </tbody>
       </table>
+      {isLoadingMore && (
+        <div className="result-load-more">
+          <span className="spinner spinner-dark" />
+          Loading more rows...
+        </div>
+      )}
     </div>
   );
 }

@@ -77,7 +77,8 @@ describe('POST /api/query', () => {
     expect(mockRunQuery).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'mysql', host: 'localhost', database: 'test' }),
       'SELECT 1',
-      200
+      200,
+      0
     );
   });
 
@@ -94,20 +95,33 @@ describe('POST /api/query', () => {
     expect(mockRunQuery).toHaveBeenCalledWith(
       expect.objectContaining({ port: 5432 }),
       'SELECT 1',
-      200
+      200,
+      0
     );
   });
 
   it('passes a custom maxRows value to the database service', async () => {
     mockRunQuery.mockResolvedValueOnce({ columns: [], rows: [], rowCount: 0, duration: 1 });
     await request(app).post('/api/query').send({ ...validBody, maxRows: 500 });
-    expect(mockRunQuery).toHaveBeenCalledWith(expect.anything(), 'SELECT 1', 500);
+    expect(mockRunQuery).toHaveBeenCalledWith(expect.anything(), 'SELECT 1', 500, 0);
   });
 
   it.each([0, 10001, 1.5, '200'])('rejects invalid maxRows value %p', async (maxRows) => {
     const response = await request(app).post('/api/query').send({ ...validBody, maxRows });
     expect(response.status).toBe(400);
     expect(response.body.error).toMatch(/maxRows/i);
+  });
+
+  it('passes a custom offset to the database service', async () => {
+    mockRunQuery.mockResolvedValueOnce({ columns: [], rows: [], rowCount: 0, duration: 1 });
+    await request(app).post('/api/query').send({ ...validBody, maxRows: 100, offset: 200 });
+    expect(mockRunQuery).toHaveBeenCalledWith(expect.anything(), 'SELECT 1', 100, 200);
+  });
+
+  it.each([-1, 1.5, '2'])('rejects invalid offset value %p', async (offset) => {
+    const response = await request(app).post('/api/query').send({ ...validBody, offset });
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/offset/i);
   });
 
   it('returns 500 when runQuery throws', async () => {
