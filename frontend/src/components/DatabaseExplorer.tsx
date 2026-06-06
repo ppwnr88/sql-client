@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ColumnMetadata,
   ConnectionConfig,
@@ -64,7 +65,6 @@ function connectionConfig(connection: ConnectionConfig, database?: string) {
 }
 
 export function DatabaseExplorer(props: DatabaseExplorerProps): React.ReactElement {
-  const [width, setWidth] = useState(300);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [databases, setDatabases] = useState<Record<string, string[]>>({});
   const [schemas, setSchemas] = useState<Record<string, SchemaMetadata[]>>({});
@@ -295,28 +295,10 @@ export function DatabaseExplorer(props: DatabaseExplorerProps): React.ReactEleme
     );
   }
 
-  function startResize(event: React.MouseEvent<HTMLDivElement>): void {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = width;
-    const move = (moveEvent: MouseEvent) => setWidth(Math.min(480, Math.max(220, startWidth + moveEvent.clientX - startX)));
-    const stop = () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', stop);
-    };
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', stop);
-  }
-
   if (props.collapsed && !props.mobileOpen) return <></>;
 
-  return (
-    <>
-      {props.mobileOpen && <button className="db-explorer-backdrop" onClick={props.onCloseMobile} aria-label="Close database explorer" />}
-      <aside
-        className={`db-explorer${props.mobileOpen ? ' mobile-open' : ''}`}
-        style={{ width: `${width}px` }}
-      >
+  const explorer = (
+    <aside className={`db-explorer${props.mobileOpen ? ' mobile-open' : ''}`}>
         <div className="db-explorer-header">
           <strong>Database Explorer</strong>
           <div>
@@ -366,8 +348,22 @@ export function DatabaseExplorer(props: DatabaseExplorerProps): React.ReactEleme
             );
           })}
         </div>
-        <div className="db-explorer-resizer" onMouseDown={startResize} />
-      </aside>
+    </aside>
+  );
+
+  if (props.mobileOpen) {
+    return (
+      <>
+        <button className="db-explorer-backdrop" onClick={props.onCloseMobile} aria-label="Close database explorer" />
+        {explorer}
+      </>
+    );
+  }
+
+  const sidebar = document.querySelector('.sidebar');
+  return (
+    <>
+      {sidebar ? createPortal(explorer, sidebar) : explorer}
     </>
   );
 }
